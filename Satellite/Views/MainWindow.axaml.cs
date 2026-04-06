@@ -78,11 +78,21 @@ public partial class MainWindow : Window
         _trayIcon.Clicked += (_, _) => Dispatcher.UIThread.Post(ShowFromTray);
     }
 
-    private void ShowFromTray()
+    public void BringToFront()
     {
         Show();
-        WindowState = WindowState.Normal;
+
+        if (WindowState == WindowState.Minimized)
+            WindowState = WindowState.Normal;
+
+        Topmost = true;
         Activate();
+        Topmost = false;
+    }
+
+    private void ShowFromTray()
+    {
+        BringToFront();
     }
 
     private void ForceClose()
