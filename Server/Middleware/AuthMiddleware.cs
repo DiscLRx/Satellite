@@ -39,7 +39,7 @@ public class AuthMiddleware(RequestDelegate next, RuntimeData runtimeData)
 
     private static bool IsAnonymousAllowedPath(PathString path)
     {
-        return path.StartsWithSegments("/a");
+        return path.StartsWithSegments("/api/a");
     }
 
     private bool IsInWhiteList(IPAddress? remoteIp)

@@ -9,8 +9,8 @@ namespace Server.Controllers
     {
         private RuntimeData _runtimeData = runtimeData;
 
-        [HttpGet("key")]
-        public string ValidateKey([FromQuery] string key)
+        [HttpPost("key")]
+        public string ValidateKey([FromForm] string key)
         {
             return key == _runtimeData.Instance.Password ? "1" : "0";
         }
