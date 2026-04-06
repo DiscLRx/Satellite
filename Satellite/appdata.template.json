@@ -1,7 +1,16 @@
 ﻿{
-  "Instances": [],
+  "Instances": [
+    {
+      "Port": 80,
+      "Locations": [],
+      "IsLocked": false,
+      "Password": "",
+      "WhiteList": [],
+      "IsRunning": false
+    }
+  ],
   "IsAutoStart": false,
-  "PanelOpacity": 50,
+  "PanelOpacity": 40,
   "PanelBlur": 10,
   "MinimizeToTray": false
 }
