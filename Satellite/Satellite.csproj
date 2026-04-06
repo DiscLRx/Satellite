@@ -9,17 +9,17 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <ApplicationIcon>Assets/satellite-logo.ico</ApplicationIcon>
     </PropertyGroup>
-    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-        <DebugType>none</DebugType>
-    </PropertyGroup>
-
+	<PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+		<DebugSymbols>false</DebugSymbols>
+		<DebugType>none</DebugType>
+	</PropertyGroup>
     
 
     <ItemGroup>
         <AvaloniaResource Include="Assets\**" />
-        <None Include="Custom\**" Condition="Exists('Custom\')" CopyToPublishDirectory="Always" CopyToOutputDirectory="Always" />
-        <None Include="appdata.json" Condition="Exists('appdata.json')" CopyToPublishDirectory="Always" CopyToOutputDirectory="Always" />
-        <None Include="appdata.template.json" Condition="!Exists('appdata.json')" TargetPath="appdata.json" CopyToPublishDirectory="Always" CopyToOutputDirectory="Always" />
+        <None Include="Custom\**" Condition="Exists('Custom')" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="PreserveNewest" />
+        <None Include="appdata.json" Condition="Exists('appdata.json')" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="PreserveNewest" />
+        <None Include="appdata.template.json" Condition="!Exists('appdata.json')" TargetPath="appdata.json" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="PreserveNewest" />
         <AvaloniaResource Remove="Service\Web\**" />
         <None Remove="Service\Web\**" />
         <AvaloniaResource Remove="Service\Control\**" />
