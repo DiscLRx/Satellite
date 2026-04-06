@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -20,6 +21,7 @@ internal partial class SourceGenerationContext : JsonSerializerContext { }
 public class ServiceController
 {
     private const string DataFilePath = "appdata.json";
+    private const string DataTemplateResourceName = "Satellite.appdata.template.json";
     private string InstancesCustomRoot = "Custom/Instances";
     public AppData AppData { get; set; }
 
@@ -63,12 +65,32 @@ public class ServiceController
     {
         lock (_ioLock)
         {
+            EnsureDataFileExists();
             var dataText = File.ReadAllText(DataFilePath);
             return JsonSerializer.Deserialize<AppData>(
                     dataText,
                     SourceGenerationContext.Default.AppData
                 ) ?? throw new NullReferenceException();
         }
+    }
+
+    private void EnsureDataFileExists()
+    {
+        if (File.Exists(DataFilePath))
+        {
+            return;
+        }
+
+        using var templateStream = Assembly.GetExecutingAssembly()
+            .GetManifestResourceStream(DataTemplateResourceName);
+        if (templateStream is null)
+        {
+            throw new FileNotFoundException($"Embedded resource '{DataTemplateResourceName}' was not found.");
+        }
+
+        using var reader = new StreamReader(templateStream);
+        var templateText = reader.ReadToEnd();
+        File.WriteAllText(DataFilePath, templateText);
     }
 
     public void SaveChange()

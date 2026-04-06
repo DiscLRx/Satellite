@@ -19,7 +19,8 @@
         <AvaloniaResource Include="Assets\**" />
         <None Include="Custom\**" Condition="Exists('Custom')" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="PreserveNewest" />
         <None Include="appdata.json" Condition="Exists('appdata.json')" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="PreserveNewest" />
-        <None Include="appdata.template.json" Condition="!Exists('appdata.json')" TargetPath="appdata.json" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="PreserveNewest" />
+        <None Remove="appdata.template.json" />
+        <EmbeddedResource Include="appdata.template.json" LogicalName="Satellite.appdata.template.json" />
         <AvaloniaResource Remove="Service\Web\**" />
         <None Remove="Service\Web\**" />
         <AvaloniaResource Remove="Service\Control\**" />
