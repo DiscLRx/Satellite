@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Net.Sockets;
 
 namespace Server.Middleware;
 
@@ -6,6 +7,8 @@ public class AuthMiddleware(RequestDelegate next, RuntimeData runtimeData)
 {
     private readonly RequestDelegate _next = next;
     private readonly RuntimeData _runtimeData = runtimeData;
+
+    private static readonly string[] AnonymousAllowedPaths = ["/api/a", "/api/res"];
 
     public async Task Invoke(HttpContext httpContext)
     {
@@ -39,7 +42,7 @@ public class AuthMiddleware(RequestDelegate next, RuntimeData runtimeData)
 
     private static bool IsAnonymousAllowedPath(PathString path)
     {
-        return path.StartsWithSegments("/api/a");
+        return AnonymousAllowedPaths.Any(p => path.StartsWithSegments(p));
     }
 
     private bool IsInWhiteList(IPAddress? remoteIp)
@@ -51,9 +54,9 @@ public class AuthMiddleware(RequestDelegate next, RuntimeData runtimeData)
 
         var whiteList = _runtimeData.Instance.WhiteList;
 
-        if (remoteIp.IsIPv4MappedToIPv6)
+        if (remoteIp.AddressFamily == AddressFamily.InterNetwork)
         {
-            remoteIp = remoteIp.MapToIPv4();
+            remoteIp = remoteIp.MapToIPv6();
         }
 
         var isInWhiteList = whiteList.Any(ip =>
@@ -61,14 +64,12 @@ public class AuthMiddleware(RequestDelegate next, RuntimeData runtimeData)
             var canParse = IPAddress.TryParse(ip, out var whiteIp);
             if (canParse && whiteIp is not null)
             {
-                if (whiteIp.IsIPv4MappedToIPv6)
+                if (whiteIp.AddressFamily == AddressFamily.InterNetwork)
                 {
-                    whiteIp = whiteIp.MapToIPv4();
+                    whiteIp = whiteIp.MapToIPv6();
                 }
-
                 return whiteIp.Equals(remoteIp);
             }
-
             return false;
         });
         return isInWhiteList;

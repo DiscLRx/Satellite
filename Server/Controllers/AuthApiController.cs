@@ -7,7 +7,7 @@ namespace Server.Controllers
     [ApiController]
     public class AuthApiController(RuntimeData runtimeData) : ControllerBase
     {
-        private RuntimeData _runtimeData = runtimeData;
+        private readonly RuntimeData _runtimeData = runtimeData;
 
         [HttpPost("key")]
         public string ValidateKey([FromForm] string key)

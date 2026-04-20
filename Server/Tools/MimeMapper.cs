@@ -26,20 +26,22 @@ public class MimeMapper
         { ".gif", "image/gif" },
         { ".htm", "text/html" },
         { ".html", "text/html" },
-        { ".ico", "image/vnd.microsoft.icon" },
+        { ".ico", "image/x-icon" },
         { ".ics", "text/calendar" },
         { ".jar", "application/java-archive" },
         { ".jpeg", "image/jpeg" },
         { ".jpg", "image/jpeg" },
-        { ".js", "text/javascript" },
+        { ".js", "application/javascript" },
         { ".json", "application/json" },
         { ".jsonld", "application/ld+json" },
         { ".mid", "audio/midi" },
         { ".midi", "audio/midi" },
-        { ".mjs", "text/javascript" },
+        { ".mjs", "application/javascript" },
         { ".m3u8", "audio/mpeg" },
         { ".mp3", "application/x-mpegURL" },
         { ".mp4", "video/mp4" },
+        { ".m4v", "video/mp4" },
+        { ".mov", "video/quicktime" },
         { ".mpeg", "video/mpeg" },
         { ".mpkg", "application/vnd.apple.installer+xml" },
         { ".odp", "application/vnd.oasis.opendocument.presentation" },
@@ -85,8 +87,8 @@ public class MimeMapper
 
     public static string? GetMimeType(string filename)
     {
-        var ext = Path.GetExtension(filename);
+        var ext = Path.GetExtension(filename).ToLowerInvariant();
         MimeTypes.TryGetValue(ext, out var mime);
-        return mime;
+        return mime ?? "application/octet-stream";
     }
 }

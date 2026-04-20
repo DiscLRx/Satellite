@@ -21,7 +21,17 @@
     </ItemGroup>
 
     <ItemGroup>
+      <EmbeddedResource Include="resources\**\*" />
+      <Content Remove="resources\**\*" />
+      <None Remove="resources\**\*" />
+    </ItemGroup>
+
+    <ItemGroup>
       <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.2" PrivateAssets="All" />
+      <PackageReference Include="taglibsharp" Version="2.3.0" />
+      <!-- Security: Explicitly pin vulnerable transitive dependencies to patched versions (NU1901) -->
+      <PackageReference Include="NuGet.Packaging" Version="7.3.1" />
+      <PackageReference Include="NuGet.Protocol" Version="7.3.1" />
     </ItemGroup>
 
 </Project>

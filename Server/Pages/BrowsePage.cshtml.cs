@@ -12,7 +12,7 @@ public class BrowsePage(RuntimeData runtimeData) : PageModel
 {
     private RuntimeData _runtimeData = runtimeData;
 
-    public string BasePath
+    public string RelativePath
     {
         get;
         set
@@ -21,43 +21,32 @@ public class BrowsePage(RuntimeData runtimeData) : PageModel
             var path = value.Trim('/');
             if (string.IsNullOrWhiteSpace(path))
             {
-                BasePathList = [];
+                RelativePathList = [];
                 return;
             }
 
-            BasePathList = path.Split('/').ToList();
+            RelativePathList = path.Split('/').ToList();
         }
     } = "/";
 
     public string LocationName { get; set; } = "";
-    public List<string> BasePathList = [];
+    public List<string> RelativePathList = [];
 
     public List<DirectoryItem> DirectoryItems = [];
 
-    public IActionResult OnGet(string locationBase64, string pathBase64 = "")
+    public IActionResult OnGet(string locationNameBase64, string relativePathBase64 = "")
     {
         var locations = _runtimeData.Instance.Locations;
 
-        // 参数校验
-        try
-        {
-            LocationName = Base64.FromBase64UrlToString(locationBase64);
-            BasePath = Base64.FromBase64UrlToString(pathBase64).TrimSlash();
-        }
-        catch (FormatException)
-        {
-            return BadRequest();
-        }
-
-        var location = locations.FirstOrDefault(loc => loc.Name == LocationName);
-        if (location == null)
+        var canResolve = LocationPathResolver.TryResolve(locations, locationNameBase64, relativePathBase64, out var resolved);
+        if (!canResolve)
         {
             return Redirect("/");
         }
+        LocationName = resolved!.LocationName;
+        RelativePath = resolved.RelativePath;
 
-        var locationRoot = location.Path;
-        var localPath = Path.GetFullPath(Path.Combine(locationRoot, BasePath));
-        if (!localPath.StartsWith(locationRoot) || !Directory.Exists(localPath))
+        if (!PathExtension.SafeCombine(resolved.LocationRoot, RelativePath, out var localPath) || !Directory.Exists(localPath))
         {
             return BadRequest();
         }

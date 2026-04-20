@@ -38,7 +38,7 @@ public partial class MainWindow : Window
         NotificationManager = new WindowNotificationManager(this)
         {
             MaxItems = 3,
-            Position = NotificationPosition.TopCenter
+            Position = NotificationPosition.TopCenter,
         };
     }
 
@@ -61,7 +61,9 @@ public partial class MainWindow : Window
     {
         _trayIcon = new TrayIcon();
 
-        using var iconStream = AssetLoader.Open(new Uri("avares://Satellite/Assets/satellite-logo.ico"));
+        using var iconStream = AssetLoader.Open(
+            new Uri("avares://Satellite/Assets/satellite-logo.ico")
+        );
         _trayIcon.Icon = new WindowIcon(iconStream);
         _trayIcon.ToolTipText = "Satellite";
         _trayIcon.IsVisible = true;
@@ -130,20 +132,19 @@ public partial class MainWindow : Window
         _dragStartPoint = point;
         _isDragging = true;
 
-        if (e.Source is Button) _isDragging = false;
+        if (e.Source is Button)
+            _isDragging = false;
     }
 
     private void OnTitleBarPointerMoved(object? sender, PointerEventArgs e)
     {
-        if (!_isDragging || WindowState == WindowState.Maximized) return;
+        if (!_isDragging || WindowState == WindowState.Maximized)
+            return;
 
         var currentPoint = e.GetPosition(this);
         var delta = currentPoint - _dragStartPoint;
 
-        Position = new PixelPoint(
-            Position.X + (int)delta.X,
-            Position.Y + (int)delta.Y
-        );
+        Position = new PixelPoint(Position.X + (int)delta.X, Position.Y + (int)delta.Y);
     }
 
     private void OnTitleBarPointerReleased(object? sender, PointerReleasedEventArgs e)
@@ -153,13 +154,14 @@ public partial class MainWindow : Window
 
     public void LoadBackground()
     {
+        windowBackgroundImage?.Dispose();
         windowBackgroundImage = GetWindowBackground();
         if (windowBackgroundImage is null)
         {
             var defaultBgBrush = new SolidColorBrush
             {
                 Color = new Color(255, 0, 0, 0),
-                Opacity = 0.4
+                Opacity = 0.4,
             };
             TitleBar.Background = defaultBgBrush;
             MainLaylout.Background = defaultBgBrush;
@@ -189,27 +191,31 @@ public partial class MainWindow : Window
     private Mat? GetWindowBackground()
     {
         var backgroundImageFile = CustomBackgroundLoader.GetCustomBackground();
-        if (backgroundImageFile is null) return null;
+        if (backgroundImageFile is null)
+        {
+            return null;
+        }
 
         var distWidth = Convert.ToInt32(Width);
         var distHeight = Convert.ToInt32(Height);
-        var image = new Mat(backgroundImageFile);
-        CalculateWindowBgResizeDist(image.Width, image.Height, ref distWidth, ref distHeight);
+        if (distWidth <= 0 || distHeight <= 0)
+        {
+            return null;
+        }
 
-        var resizedImage = ImageHelper.ScaleCv2(image, distWidth, distHeight);
+        using var image = new Mat(backgroundImageFile);
+        if (image.Empty())
+        {
+            return null;
+        }
+
+        using var resizedImage = ImageHelper.ScaleCv2(image, distWidth, distHeight);
+        if (resizedImage.Empty())
+        {
+            return null;
+        }
+
         return ImageHelper.CenterCropCv2(resizedImage, distWidth, distHeight);
-    }
-
-    private static void CalculateWindowBgResizeDist(int srcWidth, int srcHeight, ref int distWidth,
-        ref int distHeight)
-    {
-        var windowWhRate = (double)distWidth / distHeight;
-        var imgWhRate = (double)srcWidth / srcHeight;
-
-        if (imgWhRate > windowWhRate) // extra width
-            distWidth = (int)Math.Ceiling(distHeight * imgWhRate);
-        else if (imgWhRate < windowWhRate) // extra height
-            distHeight = (int)Math.Ceiling(distWidth / imgWhRate);
     }
 
     private void SetLayoutControlsBgImage()
@@ -217,7 +223,7 @@ public partial class MainWindow : Window
         List<ControlBgImageArgs> controlBgImageArgsList =
         [
             PrepareControlBgImageArgs(TitleBar, 0.4, new BlurArgs(45, 45, 20)),
-            PrepareControlBgImageArgs(MainLaylout, 0.3, new BlurArgs(1, 1, 1))
+            PrepareControlBgImageArgs(MainLaylout, 0.3, new BlurArgs(1, 1, 1)),
         ];
 
         HandleControlsBgImage(controlBgImageArgsList);
@@ -225,19 +231,34 @@ public partial class MainWindow : Window
 
     public static BlurArgs CreateBlurArgs(double blurVal)
     {
-        var xy = Convert.ToInt32(Math.Floor(blurVal));
-        if (xy % 2 == 0)
+        blurVal = Math.Clamp(blurVal, 0, 100);
+
+        // sigma 幂函数曲线（指数0.5，即平方根）：初段增速快，中段增速更平缓
+        // 系数6.0使100处sigma≈60
+        var sigmaX =
+            1
+            + (int)Math.Round(0.6 * Math.Pow(blurVal, 0.8))
+            + (int)Math.Round(0.0000013 * Math.Pow(blurVal, 4.1));
+
+        // xy 二次曲线增长：低段为 1，高段显著增大
+        var xyRaw =
+            (int)Math.Round(Math.Pow(blurVal, 0.6) * 0.6)
+            + (int)Math.Round(Math.Pow(blurVal, 5.1) * 0.00000001);
+        var xy = xyRaw % 2 == 0 ? xyRaw + 1 : xyRaw;
+
+        // kernel size=1 时 sigma 无效，保持一致性
+        if (xy == 1)
         {
-            xy++;
+            sigmaX = 1;
         }
 
-        var sigmaX = Convert.ToInt32(xy * 1.4);
         return new BlurArgs(xy, xy, sigmaX);
     }
 
     public void SetPanelControlsBgImage(BlurArgs? panelBlurArgs = null)
     {
-        if (windowBackgroundImage is null) return;
+        if (windowBackgroundImage is null)
+            return;
         panelBlurArgs ??= CreateBlurArgs(((MainWindowViewModel)DataContext!).AppData.PanelBlur);
         List<ControlBgImageArgs> controlBgImageArgsList =
         [
@@ -245,24 +266,32 @@ public partial class MainWindow : Window
             PrepareControlBgImageArgs(LocationsPanel, 0.3, panelBlurArgs),
             PrepareControlBgImageArgs(InstanceControlPanel, 0.3, panelBlurArgs),
             PrepareControlBgImageArgs(LocationControlPanel, 0.3, panelBlurArgs),
-            PrepareControlBgImageArgs(SettingPanel, 0.3, panelBlurArgs)
+            PrepareControlBgImageArgs(SettingPanel, 0.3, panelBlurArgs),
         ];
         HandleControlsBgImage(controlBgImageArgsList);
     }
 
     public void HandleControlsBgImage(List<ControlBgImageArgs> controlBgImageArgsList)
     {
-        var tasks = controlBgImageArgsList.Select(arg =>
-        {
-            return Task.Run(() =>
+        var tasks = controlBgImageArgsList
+            .Select(arg =>
             {
-                arg.BackgroundImage = GetControlBackground(arg.CtrlX,
-                    arg.CtrlY, arg.CtrlWidth, arg.CtrlHeight,
-                    arg.BlurArgs.BlurX, arg.BlurArgs.BlurY,
-                    arg.BlurArgs.BlurSigmaX, arg.BlurArgs.BlurSigmaY);
-                return arg;
-            });
-        }).ToList();
+                return Task.Run(() =>
+                {
+                    arg.BackgroundImage = GetControlBackground(
+                        arg.CtrlX,
+                        arg.CtrlY,
+                        arg.CtrlWidth,
+                        arg.CtrlHeight,
+                        arg.BlurArgs.BlurX,
+                        arg.BlurArgs.BlurY,
+                        arg.BlurArgs.BlurSigmaX,
+                        arg.BlurArgs.BlurSigmaY
+                    );
+                    return arg;
+                });
+            })
+            .ToList();
         Task.WaitAll(tasks.ToArray());
         tasks.ForEach(t =>
         {
@@ -271,14 +300,19 @@ public partial class MainWindow : Window
             {
                 Source = arg.BackgroundImage,
                 Stretch = Stretch.UniformToFill,
-                Opacity = arg.Opacity
+                Opacity = arg.Opacity,
             };
-            arg.Control.GetType().GetProperty("Background")!.SetValue(arg.Control, imageBrush);
+
+            arg.Control.GetType().GetProperty("Background")?.SetValue(arg.Control, imageBrush);
         });
     }
 
-    private ControlBgImageArgs PrepareControlBgImageArgs<T>(T control, double opacity,
-        BlurArgs blurArgs) where T : Control
+    private ControlBgImageArgs PrepareControlBgImageArgs<T>(
+        T control,
+        double opacity,
+        BlurArgs blurArgs
+    )
+        where T : Control
     {
         var icpPos = control.TranslatePoint(new Point(0, 0), this);
         var x = Convert.ToInt32(icpPos?.X);
@@ -293,22 +327,41 @@ public partial class MainWindow : Window
             CtrlHeight = height,
             Opacity = opacity,
             Control = control,
-            BlurArgs = blurArgs
+            BlurArgs = blurArgs,
         };
     }
 
-
-    private Bitmap GetControlBackground(int positionX, int positionY,
-        int width, int height, int blurX, int blurY, int blurSigmaX, int blurSigmaY)
+    private Bitmap GetControlBackground(
+        int positionX,
+        int positionY,
+        int width,
+        int height,
+        int blurX,
+        int blurY,
+        int blurSigmaX,
+        int blurSigmaY
+    )
     {
         if (windowBackgroundImage is null)
         {
             throw new InvalidOperationException("Window background image is not initialized.");
         }
 
-        var cropedImage = ImageHelper.CropCv2(windowBackgroundImage, positionX, positionY, width, height);
-        var controlBgImage = ImageHelper.GaussianBlur(cropedImage, blurX, blurY, blurSigmaX, blurSigmaY);
-        var outParam = new ImageEncodingParam(ImwriteFlags.PngBilevel, 0);
+        using var cropedImage = ImageHelper.CropCv2(
+            windowBackgroundImage,
+            positionX,
+            positionY,
+            width,
+            height
+        );
+        using var controlBgImage = ImageHelper.GaussianBlur(
+            cropedImage,
+            blurX,
+            blurY,
+            blurSigmaX,
+            blurSigmaY
+        );
+        var outParam = new ImageEncodingParam(ImwriteFlags.PngCompression, 0);
         Cv2.ImEncode(".png", controlBgImage, out var outbuf, outParam);
         return new Bitmap(new MemoryStream(outbuf));
     }

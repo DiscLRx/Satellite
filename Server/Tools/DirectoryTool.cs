@@ -8,16 +8,34 @@ public partial class DirectoryTool
     {
         try
         {
-            // 1. 处理当前目录的文件
+            // 1. 处理当前目录的文件（同目录下按 PathCompare 排序）
             var files = Directory.GetFiles(path);
+            Array.Sort(
+                files,
+                (left, right) =>
+                    PathCompare(
+                        Path.GetFileName(left),
+                        Path.GetFileName(right)
+                    )
+            );
+
             var fileInfos = files.Select(file => new FileInfo(file));
             foreach (var fileInfo in fileInfos)
             {
                 action(fileInfo);
             }
 
-            // 2. 递归子目录
+            // 2. 递归子目录（目录名按 PathCompare 排序）
             var directories = Directory.GetDirectories(path);
+            Array.Sort(
+                directories,
+                (left, right) =>
+                    PathCompare(
+                        Path.GetFileName(left),
+                        Path.GetFileName(right)
+                    )
+            );
+
             foreach (var dir in directories)
             {
                 RecursiveTraversal(dir, action); // 自身递归调用

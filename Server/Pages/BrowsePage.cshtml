@@ -1,4 +1,4 @@
-﻿@page "/b/{locationBase64}/{pathBase64?}"
+﻿@page "/b/{locationNameBase64}/{relativePathBase64?}"
 @using Server.Tools.Encoding
 @model Server.Pages.BrowsePage
 
@@ -6,954 +6,1352 @@
 <html lang="zh-CN">
 
 <head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-    <meta name="format-detection" content="telephone=no,email=no,address=no"/>
+    <meta charset="UTF-8" />
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="format-detection" content="telephone=no,email=no,address=no" />
     <title>Browse Page</title>
+    @await Html.PartialAsync("/Pages/Shared/_SatelliteTheme.cshtml")
     <style>
-        html,
-        body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            min-height: 100%;
-            min-height: 100vh;
-            color: #f7f7f7;
-            overscroll-behavior-y: none;
-            touch-action: manipulation;
-        }
+            html,
+            body {
+                width: 100%;
+                min-height: 100vh;
+                overscroll-behavior-y: none;
+                touch-action: manipulation;
+            }
+
+            html::before {
+                content: "";
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-image: var(--html-bg-image, none);
+                background-position: center center;
+                background-size: var(--html-bg-size, cover);
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+                filter: var(--html-bg-filter, none);
+                transform: scale(1.04);
+                z-index: -1;
+                pointer-events: none;
+            }
+
+            html::after {
+                content: "";
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-image: var(--front-bg-image, none);
+                background-position: center center;
+                background-size: var(--front-bg-size, contain);
+                background-repeat: no-repeat;
+                pointer-events: none;
+                z-index: -1;
+            }
+
+            body {
+                background: transparent;
+                background-color: rgba(6, 10, 16, 0);
+                padding: 0 0 env(safe-area-inset-bottom);
+                transition: background-color 0.22s ease;
+            }
+
+            body.is-light-off {
+                background-color: rgba(6, 10, 16, 0.84);
+            }
 
-        html {
-            background: #000000;
-        }
-
-        html::before {
-            content: "";
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: var(--html-bg-image, none);
-            background-position: center center;
-            background-size: var(--html-bg-size, cover);
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-            filter: var(--html-bg-filter, none);
-            transform: scale(1.04);
-            z-index: -1;
-            pointer-events: none;
-        }
-
-        html::after {
-            content: "";
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: var(--front-bg-image, none);
-            background-position: center center;
-            background-size: var(--front-bg-size, contain);
-            background-repeat: no-repeat;
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        body {
-            background: transparent;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-bottom: constant(safe-area-inset-bottom);
-            -webkit-text-size-adjust: 100%;
-        }
-
-        a,
-        a:visited,
-        a:hover,
-        a:active {
-            color: inherit;
-            text-decoration: none;
-        }
-
-        .toolbar {
-            position: fixed;
-            left: 0;
-            right: 0;
-            background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            z-index: 100;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .toolbar.top {
-            top: 0;
-        }
-
-        .toolbar.bottom {
-            bottom: 0;
-            border-bottom: 0;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .toolbar-inner {
-            max-width: 990px;
-            margin: 0 auto;
-            padding: 12px 16px;
-        }
-
-        .upload-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr);
-            gap: 10px;
-            align-items: center;
-        }
-
-        .navigate-row {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            margin-top: clamp(8px, 1.2vw, 10px);
-            padding: 8px clamp(8px, 1.2vw, 10px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 12px;
-            background: rgba(34, 34, 36, 0.55);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            color: #d7d7da;
-            font-size: clamp(0.9rem, 0.88rem + 0.2vw, 0.95rem);
-            line-height: 1.35;
-            box-sizing: border-box;
-        }
-
-        .navigate-row > span {
-            color: rgba(200, 200, 204, 0.6);
-            user-select: none;
-            flex: 0 0 auto;
-        }
-
-        .navigate-row > a {
-            display: inline-flex;
-            align-items: center;
-            padding: 2px 4px;
-            border-radius: 5px;
-            color: #e8e8eb;
-            max-width: 100%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            transition: background 0.18s ease, color 0.18s ease;
-        }
-
-        .navigate-row > a:hover,
-        .navigate-row > a:focus-visible {
-            background: rgba(86, 148, 231, 0.28);
-            color: #ffffff;
-            outline: none;
-        }
-
-        .navigate-row > a:last-of-type {
-            color: #8bc2ff;
-            font-weight: 600;
-        }
-
-        .file-input-wrap {
-            position: relative;
-            display: flex;
-            align-items: center;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            border-radius: 12px;
-            --upload-percent: 0%;
-            background: linear-gradient(90deg, rgba(128, 128, 132, 0.5) 0%, rgba(168, 168, 172, 0.44) var(--upload-percent), rgba(48, 48, 48, 0.6) var(--upload-percent), rgba(48, 48, 48, 0.6) 100%);
-            color: #efefef;
-            padding: 0 6px;
-            font-size: 0.9rem;
-            height: 46px;
-            box-sizing: border-box;
-        }
-
-        .file-input-wrap input[type="file"] {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            opacity: 0;
-        }
-
-        .file-trigger-button {
-            margin: 0 1ch 0 0;
-            height: 36px;
-            border-radius: 10px;
-            border: 1px solid rgba(98, 162, 252, 0.85);
-            background: rgba(66, 128, 214, 0.8);
-            color: #f3f3f3;
-            font-size: 0.9rem;
-            font-weight: 500;
-            padding: 0 12px;
-            cursor: pointer;
-            transition: background 0.18s ease;
-            line-height: 1;
-            text-align: center;
-            box-sizing: border-box;
-            flex: 0 0 auto;
-        }
-
-        .file-trigger-button:hover,
-        .file-trigger-button:focus-visible {
-            background: rgba(80, 145, 235, 0.9);
-        }
-
-        .file-name {
-            flex: 1 1 auto;
-            min-width: 0;
-            max-width: calc(100% - 140px);
-            color: #e5e5e5;
-            font-size: 0.92rem;
-            line-height: 36px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .upload-percent {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            margin: 0;
-            font-size: 0.78rem;
-            color: #c8c8cb;
-            line-height: 1;
-            text-align: right;
-            min-width: 40px;
-            pointer-events: none;
-        }
-
-        .content {
-            max-width: 990px;
-            margin: 0 auto;
-            padding: 16px;
-        }
-
-        /* 表格容器: 提高整体通透感 */
-        .table-wrap {
-            background: rgba(48, 48, 48, 0.44);
-            border: 1px solid rgba(255, 255, 255, 0.32);
-            border-radius: 16px;
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-        }
-
-        .thead-wrap {
-            overflow: hidden;
-        }
-
-        .tbody-wrap {
-            overflow-x: auto;
-            overflow-y: hidden;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: thin;
-            scrollbar-color: rgba(100, 100, 100, 0.5) transparent;
-        }
-
-        .tbody-wrap::-webkit-scrollbar {
-            height: 8px;
-        }
-
-        .tbody-wrap::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .tbody-wrap::-webkit-scrollbar-thumb {
-            background: rgba(100, 100, 100, 0.5);
-            border-radius: 4px;
-            transition: background 0.2s ease;
-        }
-
-        .tbody-wrap::-webkit-scrollbar-thumb:hover {
-            background: rgba(130, 130, 130, 0.7);
-        }
-
-        table {
-            width: max-content;
-            min-width: 100%;
-            border-collapse: collapse;
-            table-layout: auto;
-        }
-
-        :root {
-            --size-col-width: 130px;
-            --modify-col-width: 180px;
-            --table-header-bg: rgba(44, 44, 46, 0.65);
-            --table-cell-bg: rgba(44, 44, 46, 0.26);
-            --table-hover-bg: rgba(30, 30, 30, 0.46);
-            --table-header-text: #d9d9dc;
-            --table-cell-text: #f2f2f2;
-        }
-
-        .col-name {
-            width: var(--name-col-width);
-        }
-
-        .col-size {
-            width: var(--size-col-width);
-        }
-
-        .col-modify {
-            width: var(--modify-col-width);
-        }
-
-        /* 表头与表体统一色系 */
-        thead {
-            background: transparent;
-        }
-
-        th,
-        td {
-            padding: 12px 14px;
-            text-align: left;
-            font-size: 0.92rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        th {
-            color: var(--table-header-text);
-            font-weight: 600;
-            background: var(--table-header-bg);
-            backdrop-filter: blur(8px);
-            box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.08);
-        }
-
-        td {
-            color: var(--table-cell-text);
-            background: var(--table-cell-bg);
-        }
-
-        .table-body tbody td:first-child {
-            padding: 0;
-        }
-
-        .table-body tbody td:first-child > a {
-            display: flex;
-            align-items: center;
-            width: 100%;
-            height: 100%;
-            padding: 12px 14px;
-            box-sizing: border-box;
-        }
-
-        tbody td:nth-child(1) {
-            background: transparent;
-        }
-
-        /* 第2、3列(大小/修改时间): 添加模糊效果 8px */
-        td:nth-child(2),
-        td:nth-child(3) {
-            backdrop-filter: blur(8px);
-        }
-
-        th:nth-child(2),
-        td:nth-child(2) {
-            position: sticky;
-            right: var(--modify-col-width);
-            z-index: 2;
-        }
-
-        td:nth-child(2) {
-            box-shadow: -8px 0 10px rgba(0, 0, 0, 0.18);
-        }
-
-        th:nth-child(3),
-        td:nth-child(3) {
-            position: sticky;
-            right: 0;
-            z-index: 3;
-        }
-
-        td:nth-child(3) {
-            box-shadow: -8px 0 10px rgba(0, 0, 0, 0.18);
-        }
-
-        tbody tr:hover {
-            background: var(--table-hover-bg);
-            transition: 60ms background;
-        }
-
-        tbody tr:last-child td {
-            border-bottom: 0;
-        }
-
-        /* 名称列和大小列内容文字阴影 */
-        tbody td:nth-child(1),
-        tbody td:nth-child(2),
-        tbody td:nth-child(1) .name-text {
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.42);
-        }
-
-        .name-cell {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            min-width: max-content;
-        }
-
-        .name-text {
-            display: block;
-            white-space: nowrap;
-            color: inherit;
-            text-decoration: none;
-        }
-
-        .bottom-actions {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .action-button {
-            border-radius: 12px;
-            border: 1px solid rgba(98, 162, 252, 0.85);
-            background: rgba(66, 128, 214, 0.8);
-            color: #f3f3f3;
-            font-size: 0.92rem;
-            padding: 10px 12px;
-            cursor: pointer;
-            min-width: 96px;
-        }
-
-        .action-select {
-            width: 100%;
-            position: relative;
-            padding: 0;
-            border: 0;
-            background: transparent;
-        }
-
-        .select-trigger {
-            width: 100%;
-            height: 44px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            background: rgba(48, 48, 48, 0.6);
-            color: #f3f3f3;
-            font-size: 0.92rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 12px;
-            box-sizing: border-box;
-            cursor: pointer;
-            transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-        }
-
-        .select-trigger:hover {
-            border-color: rgba(160, 200, 255, 0.65);
-            background: rgba(56, 56, 56, 0.72);
-        }
-
-        .action-select.open .select-trigger,
-        .select-trigger:focus-visible {
-            outline: none;
-            border-color: rgba(116, 176, 255, 0.95);
-            box-shadow: 0 0 0 3px rgba(88, 152, 235, 0.28);
-        }
-
-        .select-arrow {
-            width: 9px;
-            height: 9px;
-            border-right: 2px solid rgba(227, 227, 230, 0.9);
-            border-bottom: 2px solid rgba(227, 227, 230, 0.9);
-            transform: rotate(45deg) translateY(-1px);
-            transition: transform 0.18s ease;
-            flex: 0 0 auto;
-            margin-left: 10px;
-        }
-
-        .action-select.open .select-arrow {
-            transform: rotate(-135deg) translateY(-1px);
-        }
-
-        .select-label {
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .select-menu {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 100%;
-            margin: 0;
-            padding: 6px;
-            list-style: none;
-            background: rgba(34, 34, 36, 0.88);
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            border-radius: 12px;
-            box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            max-height: 240px;
-            overflow-y: auto;
-            z-index: 220;
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-            transform: translateY(8px) scale(0.98);
-            transform-origin: bottom center;
-            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0.2s;
-        }
-
-        .action-select.open .select-menu {
-            opacity: 1;
-            visibility: visible;
-            pointer-events: auto;
-            transform: translateY(0) scale(1);
-            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s;
-        }
-
-        .select-option {
-            width: 100%;
-            border: 0;
-            border-radius: 10px;
-            background: transparent;
-            color: #f2f2f4;
-            text-align: left;
-            font-size: 0.92rem;
-            padding: 9px 10px;
-            cursor: pointer;
-        }
-
-        .select-option:hover,
-        .select-option:focus-visible {
-            outline: none;
-            background: rgba(86, 148, 231, 0.3);
-            color: #ffffff;
-        }
-
-        .select-option.active {
-            background: rgba(86, 148, 231, 0.45);
-            color: #ffffff;
-        }
-
-        .action-button:hover {
-            background: rgba(80, 145, 235, 0.9);
-        }
-
-        @@media (max-width: 1000px) {
             :root {
-                --size-col-width: 110px;
-                --modify-col-width: 0px;
+                --browse-radius-panel: 20px;
+                --browse-radius-control: 14px;
+                --browse-radius-small: 10px;
+                --browse-radius-micro: 6px;
+                --browse-radius-pill: 999px;
+                --browse-control-bg: rgba(255, 255, 255, 0.11);
+                --browse-control-bg-hover: rgba(255, 255, 255, 0.14);
+                --browse-control-border: rgba(236, 246, 251, 0.28);
+                --browse-control-border-hover: rgba(122, 167, 191, 0.38);
+            }
+
+            a,
+            a:visited,
+            a:hover,
+            a:active {
+                color: inherit;
+                text-decoration: none;
+            }
+
+            .toolbar {
+                position: fixed;
+                left: 50%;
+                transform: translateX(-50%);
+                width: min(1120px, calc(100% - 24px));
+                background: var(--panel);
+                backdrop-filter: blur(var(--glass-blur));
+                -webkit-backdrop-filter: blur(var(--glass-blur));
+                z-index: 100;
+                border: 1px solid var(--line);
+                border-radius: var(--browse-radius-panel);
+                box-shadow: var(--shadow);
+            }
+
+            .toolbar.top {
+                top: 12px;
+            }
+
+            .toolbar.bottom {
+                bottom: 12px;
+            }
+
+            .toolbar-inner {
+                padding: 14px;
+                display: grid;
+                gap: 8px;
+            }
+
+            .toolbar-head {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                gap: 8px 14px;
+                align-items: center;
+            }
+
+            .toolbar-kicker {
+                color: var(--accent);
+                font-size: 0.78rem;
+                letter-spacing: 0.14em;
+                text-transform: uppercase;
+            }
+
+            .toolbar-title {
+                margin: 2px 0 0;
+                font-family: "Bahnschrift", "IBM Plex Sans", sans-serif;
+                font-size: clamp(1.2rem, 2vw, 1.66rem);
+                letter-spacing: 0.03em;
+                line-height: 1.08;
+                text-transform: uppercase;
+            }
+
+            .toolbar-link {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 46px;
+                padding: 0 16px;
+                border-radius: var(--browse-radius-control);
+                border: 1px solid rgba(255, 138, 61, 0.34);
+                background: rgba(255, 138, 61, 0.08);
+                color: var(--text);
+                box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+                white-space: nowrap;
+                transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+            }
+
+            .toolbar-link:hover,
+            .toolbar-link:focus-visible {
+                border-color: rgba(255, 138, 61, 0.52);
+                background: rgba(255, 138, 61, 0.14);
+                transform: translateY(-1px);
+                outline: none;
+            }
+
+            .toolbar-actions {
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .toolbar-light-toggle {
+                padding: 0;
+                width: 46px;
+                min-width: 46px;
+                max-width: 46px;
+                height: 46px;
+                min-height: 46px;
+                max-height: 46px;
+            }
+
+            .toolbar-light-toggle:hover,
+            .toolbar-light-toggle:focus-visible {
+                border-color: rgba(255, 138, 61, 0.52);
+                background: rgba(255, 138, 61, 0.14);
+            }
+
+            .light-toggle-icon {
+                width: 22px;
+                height: 22px;
+                display: block;
+            }
+
+            .toolbar-light-toggle .icon-light-on,
+            .toolbar-light-toggle .icon-light-off {
+                display: none;
+                width: 22px;
+                height: 22px;
+            }
+
+            .toolbar-light-toggle[data-light="off"] .icon-light-off,
+            .toolbar-light-toggle[data-light="on"] .icon-light-on {
+                display: block;
+            }
+
+            .visually-hidden {
+                position: absolute !important;
+                width: 1px;
+                height: 1px;
+                padding: 0;
+                margin: -1px;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                white-space: nowrap;
+                border: 0;
             }
 
             .upload-row {
-                grid-template-columns: 1fr;
+                display: grid;
+                grid-template-columns: minmax(0, 1fr);
+                gap: 8px;
+                align-items: center;
             }
 
-            .bottom-actions {
-                grid-template-columns: 1fr;
+            .navigate-row {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                margin-top: clamp(2px, 0.4vw, 4px);
+                padding: 6px clamp(8px, 1.1vw, 10px);
+                border: 1px solid var(--line);
+                border-radius: var(--browse-radius-control);
+                background: var(--surface);
+                color: var(--text-muted);
+                font-size: clamp(0.88rem, 0.86rem + 0.18vw, 0.93rem);
+                line-height: 1.35;
+                box-sizing: border-box;
             }
 
-            .action-button {
-                width: 100%;
+            .navigate-row>span {
+                color: rgba(200, 200, 204, 0.6);
+                user-select: none;
+                flex: 0 0 auto;
             }
 
-            .select-trigger,
-            .select-option {
-                font-size: 16px;
+            .navigate-row>a {
+                display: inline-flex;
+                align-items: center;
+                padding: 2px 4px;
+                border-radius: var(--browse-radius-micro);
+                color: var(--text);
+                max-width: 100%;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                transition: background 0.18s ease, color 0.18s ease;
             }
 
-            th:nth-child(3),
-            td:nth-child(3) {
-                display: none;
+            .navigate-row>a:hover,
+            .navigate-row>a:focus-visible {
+                background: rgba(89, 196, 207, 0.168);
+                color: #ffffff;
+                outline: none;
             }
 
-            th:nth-child(2),
-            td:nth-child(2) {
-                right: 0;
+            .navigate-row>a:last-of-type {
+                color: #fff7ef;
+                font-weight: 600;
             }
 
-            td:nth-child(2) {
+            .file-input-wrap {
+                position: relative;
+                display: flex;
+                align-items: center;
+                overflow: hidden;
+                border: 1px solid var(--line-strong);
+                border-radius: var(--browse-radius-control);
+                --upload-percent: 0%;
+                background: linear-gradient(90deg, rgba(255, 159, 90, 0.126) 0%, rgba(255, 159, 90, 0.196) var(--upload-percent), rgba(255, 255, 255, 0.052) var(--upload-percent), rgba(255, 255, 255, 0.052) 100%);
+                color: var(--text);
+                padding: 0 6px;
+                font-size: 0.9rem;
+                height: 42px;
+                box-sizing: border-box;
+            }
+
+            .file-input-wrap input[type="file"] {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                opacity: 0;
+            }
+
+            .file-trigger-button {
+                margin: 0 1ch 0 0;
+                height: 32px;
+                border-radius: var(--browse-radius-small);
+                border: 1px solid rgba(255, 138, 61, 0.34);
+                background: rgba(255, 138, 61, 0.08);
+                color: var(--text);
+                font-size: 0.88rem;
+                font-weight: 500;
+                padding: 0 10px;
+                cursor: pointer;
+                transition: border-color 0.2s ease, background-color 0.2s ease;
+                line-height: 1;
+                text-align: center;
+                box-sizing: border-box;
+                flex: 0 0 auto;
+            }
+
+            .file-trigger-button:hover,
+            .file-trigger-button:focus-visible {
+                outline: none;
+                border-color: rgba(255, 138, 61, 0.52);
+                background: rgba(255, 138, 61, 0.14);
+            }
+
+            .file-name {
+                flex: 1 1 auto;
+                min-width: 0;
+                max-width: calc(100% - 140px);
+                color: #e5e5e5;
+                font-size: 0.9rem;
+                line-height: 32px;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
-        }
+
+            .upload-percent {
+                display: none;
+                position: absolute;
+                right: 10px;
+                top: 50%;
+                transform: translateY(-50%);
+                margin: 0;
+                font-size: 0.78rem;
+                color: var(--text-muted);
+                line-height: 1;
+                text-align: right;
+                min-width: 40px;
+                pointer-events: none;
+            }
+
+            .content {
+                width: min(1120px, calc(100% - 24px));
+                margin: 0 auto;
+                padding-left: 0;
+                padding-right: 0;
+            }
+
+            .table-wrap {
+                background: var(--panel);
+                border: 1px solid var(--line);
+                border-radius: var(--browse-radius-panel);
+                backdrop-filter: blur(var(--glass-blur));
+                -webkit-backdrop-filter: blur(var(--glass-blur));
+                box-shadow: var(--shadow);
+                overflow: hidden;
+            }
+
+            .thead-wrap {
+                overflow: hidden;
+            }
+
+            .tbody-wrap {
+                overflow-x: auto;
+                overflow-y: hidden;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
+                scrollbar-color: rgba(100, 100, 100, 0.35) transparent;
+            }
+
+            .tbody-wrap::-webkit-scrollbar {
+                height: 8px;
+            }
+
+            .tbody-wrap::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            .tbody-wrap::-webkit-scrollbar-thumb {
+                background: rgba(100, 100, 100, 0.35);
+                border-radius: var(--browse-radius-micro);
+                transition: background 0.2s ease;
+            }
+
+            .tbody-wrap::-webkit-scrollbar-thumb:hover {
+                background: rgba(130, 130, 130, 0.49);
+            }
+
+            table {
+                width: max-content;
+                min-width: 100%;
+                border-collapse: collapse;
+                table-layout: auto;
+            }
+
+            :root {
+                --size-col-width: 130px;
+                --modify-col-width: 180px;
+                --table-header-bg: rgba(255, 255, 255, 0.056);
+                --table-cell-bg: rgba(255, 255, 255, 0.021);
+                --table-hover-bg: rgba(255, 255, 255, 0.056);
+                --table-header-text: var(--text-muted);
+                --table-cell-text: var(--text);
+            }
+
+            .col-name {
+                width: var(--name-col-width);
+            }
+
+            .col-size {
+                width: var(--size-col-width);
+            }
+
+            .col-modify {
+                width: var(--modify-col-width);
+            }
+
+            /* 表头与表体统一色系 */
+            thead {
+                background: transparent;
+            }
+
+            th,
+            td {
+                padding: 12px 14px;
+                text-align: left;
+                font-size: 0.92rem;
+                border-bottom: 1px solid rgba(122, 167, 191, 0.084);
+            }
+
+            th {
+                color: var(--table-header-text);
+                font-weight: 600;
+                background: var(--table-header-bg);
+                backdrop-filter: blur(var(--soft-blur));
+                box-shadow: inset 0 -1px 0 rgba(122, 167, 191, 0.084);
+            }
+
+            td {
+                color: var(--table-cell-text);
+                background: var(--table-cell-bg);
+            }
+
+            .table-body tbody td:first-child {
+                background: transparent;
+                padding: 0;
+            }
+
+            .table-body tbody td:first-child>a {
+                display: flex;
+                align-items: center;
+                width: 100%;
+                height: 100%;
+                padding: 12px 14px;
+                box-sizing: border-box;
+            }
+
+            tbody td:nth-child(1) {
+                background: transparent;
+            }
+
+            /* 第2、3列(大小/修改时间): 用 ::before 伪元素扩展模糊采样范围 */
+            td:nth-child(2),
+            td:nth-child(3) {
+                overflow: hidden;
+            }
+
+            td:nth-child(2)::before,
+            td:nth-child(3)::before {
+                content: "";
+                position: absolute;
+                inset: -8px;
+                backdrop-filter: blur(var(--soft-blur));
+                -webkit-backdrop-filter: blur(var(--soft-blur));
+                z-index: -1;
+                pointer-events: none;
+            }
+
+            th:nth-child(2),
+            td:nth-child(2) {
+                position: sticky;
+                right: var(--modify-col-width);
+                z-index: 2;
+            }
+
+            td:nth-child(2) {
+                box-shadow: -8px 0 10px rgba(0, 0, 0, 0.18);
+            }
+
+            th:nth-child(3),
+            td:nth-child(3) {
+                position: sticky;
+                right: 0;
+                z-index: 3;
+            }
+
+            tbody tr:hover {
+                background: var(--table-hover-bg);
+                transition: 60ms background;
+            }
+
+            tbody tr:last-child td {
+                border-bottom: 0;
+            }
+
+            /* 名称列和大小列内容文字阴影 */
+            tbody td:nth-child(1),
+            tbody td:nth-child(2),
+            tbody td:nth-child(1) .name-text {
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.42);
+            }
+
+            .name-cell {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                min-width: max-content;
+            }
+
+            .name-text {
+                display: block;
+                white-space: nowrap;
+                color: inherit;
+                text-decoration: none;
+            }
+
+            .bottom-actions {
+                display: flex;
+                flex-wrap: nowrap;
+                gap: 12px;
+                align-items: center;
+            }
+
+            .action-button {
+                border-radius: var(--browse-radius-control);
+                border: 1px solid rgba(255, 138, 61, 0.34);
+                background: rgba(255, 138, 61, 0.08);
+                color: var(--text);
+                font-size: 0.92rem;
+                padding: 10px 12px;
+                cursor: pointer;
+                min-width: 96px;
+                transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+            }
+
+            .action-select {
+                flex: 1 1 auto;
+                min-width: 0;
+                position: relative;
+                padding: 0;
+                border: 0;
+                background: transparent;
+            }
+
+            .select-trigger {
+                width: 100%;
+                height: 44px;
+                border-radius: var(--browse-radius-control);
+                border: 1px solid var(--browse-control-border);
+                background: var(--browse-control-bg);
+                color: var(--text);
+                font-size: 0.92rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 12px;
+                box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+                box-sizing: border-box;
+                cursor: pointer;
+                transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+            }
+
+            .select-trigger:hover {
+                border-color: var(--browse-control-border-hover);
+                background: var(--browse-control-bg-hover);
+            }
+
+            .action-select.open .select-trigger,
+            .select-trigger:focus-visible {
+                outline: none;
+                border-color: rgba(89, 196, 207, 0.546);
+                box-shadow: 0 0 0 3px rgba(89, 196, 207, 0.112);
+            }
+
+            .select-arrow {
+                width: 9px;
+                height: 9px;
+                border-right: 2px solid rgba(236, 246, 251, 0.9);
+                border-bottom: 2px solid rgba(236, 246, 251, 0.9);
+                transform: rotate(45deg) translateY(-1px);
+                transition: transform 0.18s ease;
+                flex: 0 0 auto;
+                margin-left: 10px;
+            }
+
+            .action-select.open .select-arrow {
+                transform: rotate(-135deg) translateY(-1px);
+            }
+
+            .select-label {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .select-menu {
+                position: absolute;
+                left: 0;
+                right: 0;
+                bottom: 100%;
+                margin: 0;
+                padding: 6px;
+                list-style: none;
+                background: rgba(18, 24, 31, 0.72);
+                border: 1px solid var(--line);
+                border-radius: var(--browse-radius-control);
+                box-shadow: var(--shadow);
+                backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(125%);
+                -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(125%);
+                max-height: 240px;
+                overflow-y: auto;
+                z-index: 220;
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+                transform: translateY(8px) scale(0.98);
+                transform-origin: bottom center;
+                transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0.2s;
+            }
+
+            .action-select.open .select-menu {
+                opacity: 1;
+                visibility: visible;
+                pointer-events: auto;
+                transform: translateY(0) scale(1);
+                transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s;
+            }
+
+            .select-menu.select-menu--portal {
+                position: fixed;
+                left: var(--menu-left, 0px);
+                top: var(--menu-top, 0px);
+                width: var(--menu-width, 240px);
+                right: auto;
+                bottom: auto;
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+                transform: translateY(6px) scale(0.98);
+                transform-origin: top center;
+                transition: none;
+                z-index: 999;
+            }
+
+            .select-menu.select-menu--portal.is-open {
+                opacity: 1;
+                visibility: visible;
+                pointer-events: auto;
+                transform: translateY(0) scale(1);
+            }
+
+            .select-option {
+                width: 100%;
+                border: 0;
+                border-radius: var(--browse-radius-small);
+                background: transparent;
+                color: var(--text);
+                text-align: left;
+                font-size: 0.92rem;
+                padding: 9px 10px;
+                cursor: pointer;
+            }
+
+            .select-option:hover,
+            .select-option:focus-visible {
+                outline: none;
+                background: rgba(89, 196, 207, 0.14);
+                color: #ffffff;
+            }
+
+            .select-option.active {
+                background: rgba(255, 159, 90, 0.168);
+                color: #ffffff;
+            }
+
+            .action-button:hover,
+            .action-button:focus-visible {
+                outline: none;
+                border-color: rgba(255, 138, 61, 0.52);
+                background: rgba(255, 138, 61, 0.14);
+                transform: translateY(-1px);
+            }
+
+            @@media (max-width: 1000px) {
+                .toolbar {
+                    left: 0;
+                    right: 0;
+                    width: 100%;
+                    transform: none;
+                    border-radius: 0;
+                    border-left: 0;
+                    border-right: 0;
+                }
+
+                .toolbar.top {
+                    top: 0;
+                    border-top: 0;
+                }
+
+                .toolbar.bottom {
+                    bottom: 0;
+                    border-bottom: 0;
+                }
+
+                .toolbar.top .toolbar-inner {
+                    padding: calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 10px) 10px calc(env(safe-area-inset-left) + 10px);
+                    gap: 6px;
+                }
+
+                .toolbar.bottom .toolbar-inner {
+                    padding: 10px calc(env(safe-area-inset-right) + 10px) calc(env(safe-area-inset-bottom) + 10px) calc(env(safe-area-inset-left) + 10px);
+                    gap: 6px;
+                }
+
+                :root {
+                    --size-col-width: 110px;
+                    --modify-col-width: 0px;
+                }
+
+                .upload-row {
+                    grid-template-columns: 1fr;
+                    gap: 6px;
+                }
+
+                .bottom-actions {
+                    gap: 6px;
+                }
+
+                .toolbar-head {
+                    grid-template-columns: minmax(0, 1fr) auto;
+                    gap: 4px 10px;
+                }
+
+                .toolbar-head > div {
+                    display: inline-flex;
+                    flex-direction: row-reverse;
+                    align-items: flex-end;
+                    justify-content: flex-end;
+                    gap: 8px;
+                }
+
+                .toolbar-title {
+                    font-size: clamp(0.94rem, 1.08rem + 0.35vw, 1.08rem);
+                    letter-spacing: 0.015em;
+                    line-height: 0.98;
+                    margin: 0;
+                }
+
+                .toolbar-kicker {
+                    font-size: 0.64rem;
+                    letter-spacing: 0.08em;
+                    line-height: 1;
+                    padding-bottom: 1px;
+                }
+
+                .file-input-wrap {
+                    height: 38px;
+                    padding: 0 5px;
+                    font-size: 0.84rem;
+                }
+
+                .file-trigger-button {
+                    height: 28px;
+                    padding: 0 8px;
+                    font-size: 0.8rem;
+                }
+
+                .file-name {
+                    font-size: 0.82rem;
+                    line-height: 28px;
+                }
+
+                .upload-percent {
+                    right: 8px;
+                    font-size: 0.72rem;
+                    min-width: 34px;
+                }
+
+                .navigate-row {
+                    margin-top: 0;
+                    padding: 4px 8px;
+                    border-radius: var(--browse-radius-small);
+                    font-size: 0.82rem;
+                    line-height: 1.22;
+                }
+
+                th,
+                td {
+                    padding: 10px 12px;
+                    font-size: 0.84rem;
+                }
+
+                .table-body tbody td:first-child > a {
+                    padding: 10px 12px;
+                }
+
+                .name-cell {
+                    gap: 6px;
+                }
+
+                .toolbar-link {
+                    display: none;
+                }
+
+                .toolbar-light-toggle {
+                    display: inline-flex;
+                    width: 36px;
+                    min-width: 36px;
+                    max-width: 36px;
+                    height: 36px;
+                    min-height: 36px;
+                    max-height: 36px;
+                }
+
+                .toolbar-light-toggle .icon-light-on,
+                .toolbar-light-toggle .icon-light-off {
+                    width: 18px;
+                    height: 18px;
+                }
+
+                .action-button {
+                    flex: 0 0 auto;
+                    min-width: 88px;
+                    white-space: nowrap;
+                }
+
+                .select-trigger,
+                .select-option {
+                    font-size: 15px;
+                }
+
+                th:nth-child(3),
+                td:nth-child(3) {
+                    display: none;
+                }
+
+                th:nth-child(2),
+                td:nth-child(2) {
+                    right: 0;
+                }
+
+                td:nth-child(2) {
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+            }
     </style>
 </head>
 
-<body>
-<header class="toolbar top" id="topBar">
-    <div class="toolbar-inner">
-
-        <div class="upload-row">
-            <div class="file-input-wrap">
-                <input id="fileInput" type="file" multiple/>
-                <button id="fileTriggerButton" class="file-trigger-button" type="button">选择文件</button>
-                <span class="file-name" id="fileNameText">未选择文件</span>
-                <span class="upload-percent" id="progressText">0%</span>
+<body class="is-light-off">
+    <header class="toolbar top" id="topBar">
+        <div class="toolbar-inner">
+            <div class="toolbar-head">
+                <div>
+                    <div class="toolbar-kicker">Satellite</div>
+                    <h1 class="toolbar-title">Browse</h1>
+                </div>
+                <div class="toolbar-actions">
+                    <button id="lightToggleBtn" class="toolbar-link toolbar-light-toggle" type="button" aria-label="关灯" title="关灯">
+                        <img class="light-toggle-icon icon-light-on" src="/api/res/icon/btn-light-on.svg" alt="开灯" />
+                        <img class="light-toggle-icon icon-light-off" src="/api/res/icon/btn-light-off.svg" alt="关灯" />
+                        <span class="visually-hidden">灯光切换</span>
+                    </button>
+                    <a class="toolbar-link" href="/">Locations</a>
+                </div>
             </div>
-        </div>
-        <div class="navigate-row">
-            <span>/</span>
-            <a href='/'>Locations</a>
-            <span>/</span>
-            <a href='@($"/b/{Base64.ToBase64Url(Model.LocationName)}")'>@Model.LocationName</a>
-            @for (var i = 0; i < Model.BasePathList.Count; i++)
-            {
-                var pathPart = Model.BasePathList[i];
-                var href = $"/b/{Base64.ToBase64Url(Model.LocationName)}/{Base64.ToBase64Url(string.Join('/', Model.BasePathList[0 .. (i + 1)]))}";
+
+            <div class="upload-row">
+                <div class="file-input-wrap">
+                    <input id="fileInput" type="file" multiple />
+                    <button id="fileTriggerButton" class="file-trigger-button" type="button">选择文件</button>
+                    <span class="file-name" id="fileNameText">未选择文件</span>
+                    <span class="upload-percent" id="progressText"></span>
+                </div>
+            </div>
+            <div class="navigate-row">
                 <span>/</span>
-                <a href="@href">@pathPart</a>
-            }
-        </div>
-    </div>
-    <script>
-        let lastTouchEnd = 0;
-        document.addEventListener('touchend', function (event) {
-            const now = (new Date()).getTime();
-            if (now - lastTouchEnd <= 300) {
-                event.preventDefault(); // 禁止双击缩放
-            }
-            lastTouchEnd = now;
-        }, {passive: false});
-    </script>
-</header>
-
-<main class="content" id="content">
-    <section class="table-wrap">
-        <div class="thead-wrap">
-            <table class="table-head">
-                <colgroup>
-                    <col class="col-name"/>
-                    <col class="col-size"/>
-                    <col class="col-modify"/>
-                </colgroup>
-                <thead>
-                <tr>
-                    <th>名称</th>
-                    <th>大小</th>
-                    <th>修改时间</th>
-                </tr>
-                </thead>
-            </table>
-        </div>
-        <div class="tbody-wrap">
-            <table class="table-body">
-                <colgroup>
-                    <col class="col-name"/>
-                    <col class="col-size"/>
-                    <col class="col-modify"/>
-                </colgroup>
-                <tbody id="tableBody">
-                @foreach (var dirItem in Model.DirectoryItems)
+                <a href='/'>Locations</a>
+                <span>/</span>
+                <a href='@($"/b/{Base64.ToBase64Url(Model.LocationName)}")'>@Model.LocationName</a>
+                @for (var i = 0; i < Model.RelativePathList.Count; i++)
                 {
-                    var itemPath = $"{Model.BasePath}/{dirItem.Name}";
-                    var href = dirItem.Type == "d"
-                        ? $"/b/{Base64.ToBase64Url(Model.LocationName)}/{Base64.ToBase64Url(itemPath)}"
-                        : $"/api/f/{Base64.ToBase64Url(Model.LocationName)}/{Base64.ToBase64Url(itemPath)}";
-                    <tr>
-                        <td>
-                            <a href="@href" title="@dirItem.Name">
-                                <div class='name-cell'>
-                                    <span>@(dirItem.Type == "d" ? "📁" : "📄")</span>
-                                    <span class="name-text">@dirItem.Name</span>
-                                </div>
-                            </a>
-                        </td>
-                        <td>@(Server.Tools.DirectoryTool.FormatBytes(dirItem.Size))</td>
-                        <td>@dirItem.LastModify</td>
-                    </tr>
+                    var pathPart = Model.RelativePathList[i];
+                    var href = $"/b/{Base64.ToBase64Url(Model.LocationName)}/{Base64.ToBase64Url(string.Join('/',
+                    Model.RelativePathList[0..(i + 1)]))}";
+                    <span>/</span>
+                    <a href="@href">@pathPart</a>
                 }
-                </tbody>
-            </table>
-        </div>
-    </section>
-</main>
-
-<footer class="toolbar bottom" id="bottomBar">
-    <div class="toolbar-inner">
-        <div class="bottom-actions">
-            <div id="actionSelect" class="action-select">
-                <input id="actionValue" type="hidden" value="ShufflePlay"/>
-                <button id="actionTrigger" class="select-trigger" type="button" aria-haspopup="listbox"
-                        aria-expanded="false" aria-controls="actionMenu">
-                    <span id="actionLabel" class="select-label"></span>
-                    <span class="select-arrow" aria-hidden="true"></span>
-                </button>
-                <ul id="actionMenu" class="select-menu" role="listbox" tabindex="-1" aria-label="操作选择">
-                    <li>
-                        <button class="select-option active" role="option" type="button" data-value="ShufflePlay"
-                                aria-selected="true">Shuffle Play
-                        </button>
-                    </li>
-                    <li>
-                        <button class="select-option" role="option" type="button" data-value="Manga"
-                                aria-selected="false">Manga
-                        </button>
-                    </li>
-                </ul>
             </div>
-            <button id="actionButton" class="action-button" type="button">Run</button>
         </div>
-    </div>
-</footer>
-<script>
-    @* 文件上传相关逻辑 *@
-    const fileInputWrap = document.querySelector(".file-input-wrap");
-    const progressText = document.getElementById("progressText");
-    const fileTriggerButton = document.getElementById("fileTriggerButton");
-    const fileInput = document.getElementById("fileInput");
-    const fileNameText = document.getElementById("fileNameText");
-    const uploadUrl = '/api/f/upload/@Base64.ToBase64Url(Model.LocationName)/@(Base64.ToBase64Url(Model.BasePath))';
+        <script>
+                    let lastTouchEnd = 0;
+                    document.addEventListener('touchend', function (event) {
+                        const now = (new Date()).getTime();
+                        if (now - lastTouchEnd <= 300) {
+                            event.preventDefault(); // 禁止双击缩放
+                        }
+                        lastTouchEnd = now;
+                    }, { passive: false });
+        </script>
+    </header>
 
-    function setUploadProgress(value) {
-        if (!fileInputWrap || !progressText) return;
-        const percent = `${value}%`;
-        fileInputWrap.style.setProperty("--upload-percent", percent);
-        progressText.textContent = percent;
-    }
+    <main class="content" id="content">
+        <section class="table-wrap">
+            <div class="thead-wrap">
+                <table class="table-head">
+                    <colgroup>
+                        <col class="col-name" />
+                        <col class="col-size" />
+                        <col class="col-modify" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>大小</th>
+                            <th>修改时间</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+            <div class="tbody-wrap">
+                <table class="table-body">
+                    <colgroup>
+                        <col class="col-name" />
+                        <col class="col-size" />
+                        <col class="col-modify" />
+                    </colgroup>
+                    <tbody id="tableBody">
+                        @foreach (var dirItem in Model.DirectoryItems)
+                        {
+                            var itemPath = $"{Model.RelativePath}/{dirItem.Name}";
+                            var href = dirItem.Type == "d"
+                                ? $"/b/{Base64.ToBase64Url(Model.LocationName)}/{Base64.ToBase64Url(itemPath)}"
+                                : $"/api/f/{Base64.ToBase64Url(Model.LocationName)}/{Base64.ToBase64Url(itemPath)}";
+                            <tr>
+                                <td>
+                                    <a href="@href" title="@dirItem.Name">
+                                        <div class='name-cell'>
+                                            <span>@(dirItem.Type == "d" ? "📁" : "📄")</span>
+                                            <span class="name-text">@dirItem.Name</span>
+                                        </div>
+                                    </a>
+                                </td>
+                                <td>@(Server.Tools.DirectoryTool.FormatBytes(dirItem.Size))</td>
+                                <td>@dirItem.LastModify</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
 
-    fileTriggerButton?.addEventListener("click", () => {
-        try {
-            if (typeof fileInput.showPicker === "function") {
-                fileInput.showPicker();
-            } else {
-                fileInput.click();
+    <footer class="toolbar bottom" id="bottomBar">
+        <div class="toolbar-inner">
+            <div class="bottom-actions">
+                <div id="actionSelect" class="action-select">
+                    <input id="actionValue" type="hidden" value="LitePlay" />
+                    <button id="actionTrigger" class="select-trigger" type="button" aria-haspopup="listbox"
+                            aria-expanded="false" aria-controls="actionMenu">
+                        <span id="actionLabel" class="select-label"></span>
+                        <span class="select-arrow" aria-hidden="true"></span>
+                    </button>
+                    <ul id="actionMenu" class="select-menu" role="listbox" tabindex="-1" aria-label="操作选择">
+                        <li>
+                            <button class="select-option active" role="option" type="button" data-value="LitePlay"
+                                    aria-selected="true">Lite Play
+                            </button>
+                        </li>
+                        <li>
+                            <button class="select-option" role="option" type="button" data-value="Manga"
+                                    aria-selected="false">Manga
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <button id="actionButton" class="action-button" type="button">Run</button>
+            </div>
+        </div>
+    </footer>
+    <script>
+            const lightToggleBtn = document.getElementById("lightToggleBtn");
+            const lightModeStorageKey = "lightMode";
+            const legacyLightModeStorageKey = "liteplay.lightMode";
+
+            function readLightMode() {
+                try {
+                    const currentValue = (window.localStorage.getItem(lightModeStorageKey) || "").toLowerCase();
+                    if (currentValue === "on" || currentValue === "off") {
+                        return currentValue;
+                    }
+
+                    const legacyValue = (window.localStorage.getItem(legacyLightModeStorageKey) || "").toLowerCase();
+                    if (legacyValue === "on" || legacyValue === "off") {
+                        // Migrate old key so all pages share one canonical value.
+                        window.localStorage.setItem(lightModeStorageKey, legacyValue);
+                        return legacyValue;
+                    }
+
+                    return "";
+                } catch {
+                    return "";
+                }
             }
-        } catch (error) {
-            fileInput.click();
-        }
-    });
 
-    fileInput?.addEventListener("change", () => {
-        if (fileInput.files && fileInput.files.length > 0) {
-            if (fileInput.files.length === 1) {
-                fileNameText.textContent = fileInput.files[0].name;
-            } else {
-                fileNameText.textContent = `已选择 ${fileInput.files.length} 个文件`;
-            }
-            uploadSelectedFiles(fileInput.files);
-        } else {
-            fileNameText.textContent = "未选择文件";
-            setUploadProgress(0);
-        }
-    });
-
-    function uploadSelectedFiles(files) {
-        const formData = new FormData();
-        for (const file of files) {
-            formData.append("files", file, file.name);
-        }
-
-        setUploadProgress(0);
-        fileTriggerButton.disabled = true;
-
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", uploadUrl, true);
-
-        xhr.upload.onprogress = (event) => {
-            if (!event.lengthComputable) return;
-            const percent = Math.min(99, Math.round((event.loaded / event.total) * 100));
-            setUploadProgress(percent);
-        };
-
-        xhr.onload = () => {
-            fileTriggerButton.disabled = false;
-            if (xhr.status >= 200 && xhr.status < 300) {
-                setUploadProgress(100);
-                fileNameText.textContent = "上传完成";
-                setTimeout(() => location.reload(), 300);
-                return;
+            function writeLightMode(mode) {
+                try {
+                    window.localStorage.setItem(lightModeStorageKey, mode);
+                } catch {
+                }
             }
 
-            setUploadProgress(0);
-            fileNameText.textContent = `上传失败 (${xhr.status})`;
-        };
+            function restoreLightModeFromStorage() {
+                const storedMode = readLightMode();
+                if (storedMode === "off") {
+                    document.body.classList.add("is-light-off");
+                    return;
+                }
 
-        xhr.onerror = () => {
-            fileTriggerButton.disabled = false;
-            setUploadProgress(0);
-            fileNameText.textContent = "上传失败 (网络错误)";
-        };
+                if (storedMode === "on") {
+                    document.body.classList.remove("is-light-off");
+                }
+            }
 
-        xhr.send(formData);
-    }
-</script>
-<script>
-    const actionSelect = document.getElementById("actionSelect");
-    const actionValue = document.getElementById("actionValue");
-    const actionTrigger = document.getElementById("actionTrigger");
-    const actionLabel = document.getElementById("actionLabel");
-    const actionButton = document.getElementById("actionButton");
-    const actionOptions = Array.from(document.querySelectorAll("#actionMenu .select-option"));
+            function syncLightToggleUi() {
+                if (!lightToggleBtn) {
+                    return;
+                }
 
-    function setActionOption(option) {
-        if (!actionValue || !actionLabel) return;
-        actionOptions.forEach((item) => {
-            const isActive = item === option;
-            item.classList.toggle("active", isActive);
-            item.setAttribute("aria-selected", String(isActive));
-        });
-        actionValue.value = option.dataset.value;
-        actionLabel.textContent = option.textContent;
-    }
+                const isLightOff = document.body.classList.contains("is-light-off");
+                lightToggleBtn.dataset.light = isLightOff ? "off" : "on";
+                lightToggleBtn.setAttribute("aria-label", isLightOff ? "关灯" : "开灯");
+                lightToggleBtn.setAttribute("title", isLightOff ? "关灯" : "开灯");
+                lightToggleBtn.setAttribute("aria-pressed", isLightOff ? "true" : "false");
+            }
 
-    function closeActionMenu() {
-        if (!actionSelect || !actionTrigger) return;
-        actionSelect.classList.remove("open");
-        actionTrigger.setAttribute("aria-expanded", "false");
-    }
+            function toggleLightMask() {
+                document.body.classList.toggle("is-light-off");
+                const lightMode = document.body.classList.contains("is-light-off") ? "off" : "on";
+                writeLightMode(lightMode);
+                syncLightToggleUi();
+            }
 
-    function openActionMenu() {
-        if (!actionSelect || !actionTrigger) return;
-        actionSelect.classList.add("open");
-        actionTrigger.setAttribute("aria-expanded", "true");
-        const current = actionOptions.find((option) => option.classList.contains("active")) || actionOptions[0];
-        if (current) {
-            current.focus();
-        }
-    }
+            lightToggleBtn?.addEventListener("click", toggleLightMask);
+            restoreLightModeFromStorage();
+            syncLightToggleUi();
+    </script>
+    <script>
+            @* 文件上传相关逻辑 *@
+            const fileInputWrap = document.querySelector(".file-input-wrap");
+            const progressText = document.getElementById("progressText");
+            const fileTriggerButton = document.getElementById("fileTriggerButton");
+            const fileInput = document.getElementById("fileInput");
+            const fileNameText = document.getElementById("fileNameText");
+            const uploadUrl = '/api/f/upload/@Base64.ToBase64Url(Model.LocationName)/@(Base64.ToBase64Url(Model.RelativePath))';
 
-    actionTrigger?.addEventListener("click", () => {
-        if (actionSelect.classList.contains("open")) {
-            closeActionMenu();
-        } else {
-            openActionMenu();
-        }
-    });
+            function setUploadProgress(value) {
+                if (!fileInputWrap || !progressText) return;
+                const percent = `${value}%`;
+                fileInputWrap.style.setProperty("--upload-percent", percent);
+                progressText.textContent = percent;
+                progressText.style.display = "block";
+            }
 
-    actionOptions.forEach((option) => {
-        option.addEventListener("click", () => {
-            setActionOption(option);
-            closeActionMenu();
-            actionTrigger.focus();
-        });
-    });
+            fileTriggerButton?.addEventListener("click", () => {
+                try {
+                    if (typeof fileInput.showPicker === "function") {
+                        fileInput.showPicker();
+                    } else {
+                        fileInput.click();
+                    }
+                } catch (error) {
+                    fileInput.click();
+                }
+            });
 
-    document.addEventListener("click", (event) => {
-        if (!actionSelect) return;
-        if (!actionSelect.contains(event.target)) {
-            closeActionMenu();
-        }
-    });
+            fileInput?.addEventListener("change", () => {
+                if (fileInput.files && fileInput.files.length > 0) {
+                    if (fileInput.files.length === 1) {
+                        fileNameText.textContent = fileInput.files[0].name;
+                    } else {
+                        fileNameText.textContent = `已选择 ${fileInput.files.length} 个文件`;
+                    }
+                    uploadSelectedFiles(fileInput.files);
+                } else {
+                    fileNameText.textContent = "未选择文件";
+                    setUploadProgress(0);
+                }
+            });
 
-    document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") {
-            closeActionMenu();
-        }
-    });
+            function uploadSelectedFiles(files) {
+                const formData = new FormData();
+                for (const file of files) {
+                    formData.append("files", file, file.name);
+                }
 
-    actionButton?.addEventListener("click", () => {
-        const selectedAction = actionValue.value;
-        switch (selectedAction) {
-            case "ShufflePlay":
-                ShufflePlay();
-                break;
-            case "Manga":
-                Manga();
-                break;
-            default:
-                alert(`Unknown action: ${selectedAction}`);
-        }
-    });
+                setUploadProgress(0);
+                fileTriggerButton.disabled = true;
 
-    const activeAction = actionOptions.find((option) => option.classList.contains("active"));
-    if (activeAction) {
-        setActionOption(activeAction);
-    }
+                const xhr = new XMLHttpRequest();
+                xhr.open("POST", uploadUrl, true);
 
-    // action functions
-    function ShufflePlay() {
-        const url = '/api/ex/shuffle-play/@Base64.ToBase64Url(Model.LocationName)/@(Base64.ToBase64Url(Model.BasePath))';
-        location.href = url;
-    }
+                xhr.upload.onprogress = (event) => {
+                    if (!event.lengthComputable) return;
+                    const percent = Math.min(99, Math.round((event.loaded / event.total) * 100));
+                    setUploadProgress(percent);
+                };
 
-    function Manga() {
-        const url = '/ex/manga/@Base64.ToBase64Url(Model.LocationName)/@(Base64.ToBase64Url(Model.BasePath))';
-        location.href = url;
-    }
+                xhr.onload = () => {
+                    fileTriggerButton.disabled = false;
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        setUploadProgress(100);
+                        fileNameText.textContent = "上传完成";
+                        setTimeout(() => location.reload(), 300);
+                        return;
+                    }
 
-</script>
-<script>
-    @* 同步内容区的内边距以适应工具栏高度 *@
-    const topBar = document.getElementById("topBar");
-    const bottomBar = document.getElementById("bottomBar");
-    const content = document.getElementById("content");
+                    setUploadProgress(0);
+                    fileNameText.textContent = `上传失败 (${xhr.status})`;
+                };
 
-    function syncContentPadding() {
-        if (!topBar || !bottomBar || !content) return;
-        const topHeight = topBar.offsetHeight;
-        const bottomHeight = bottomBar.offsetHeight;
-        content.style.paddingTop = `${topHeight + 16}px`;
-        content.style.paddingBottom = `${bottomHeight + 16}px`;
-    }
+                xhr.onerror = () => {
+                    fileTriggerButton.disabled = false;
+                    setUploadProgress(0);
+                    fileNameText.textContent = "上传失败 (网络错误)";
+                };
 
-    window.addEventListener("resize", syncContentPadding);
-    syncContentPadding();
-</script>
-<script>
-    @* 背景图片加载与设置 *@
+                xhr.send(formData);
+            }
+    </script>
+    <script>
+            const actionSelect = document.getElementById("actionSelect");
+            const actionValue = document.getElementById("actionValue");
+            const actionTrigger = document.getElementById("actionTrigger");
+            const actionLabel = document.getElementById("actionLabel");
+            const actionButton = document.getElementById("actionButton");
+            const actionMenu = document.getElementById("actionMenu");
+            const actionOptions = Array.from(document.querySelectorAll("#actionMenu .select-option"));
 
-    async function loadBackgroundImage(windowWhRate) {
-        let imageType;
-        if (windowWhRate > 1) {
-            imageType = "horizontal";
-        } else {
-            imageType = "vertical";
-        }
-        let url = `/api/bg?imageType=${imageType}`;
-        const res = await fetch(url, {method: "GET"});
-        if (!res.ok) {
-            return null;
-        }
-        const blob = await res.blob();
-        return URL.createObjectURL(blob);
-    }
+            function ensureActionMenuPortal() {
+                if (!actionMenu) return;
+                if (actionMenu.parentElement !== document.body) {
+                    document.body.append(actionMenu);
+                }
+                actionMenu.classList.add("select-menu--portal");
+            }
 
-    let windowWhRate = window.innerWidth / window.innerHeight;
-    let bgUrl = null;
+            function positionActionMenu() {
+                if (!actionMenu || !actionTrigger) return;
 
-    async function setBackground() {
-        let windowWhRateOld = windowWhRate;
-        windowWhRate = window.innerWidth / window.innerHeight;
-        if (bgUrl === null || (windowWhRateOld > 1 && windowWhRate <= 1) || (windowWhRateOld <= 1 && windowWhRate > 1)) {
-            bgUrl = await loadBackgroundImage(windowWhRate);
-        }
+                const triggerRect = actionTrigger.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+                const viewportWidth = window.innerWidth;
 
-        const htmlElement = document.documentElement;
-        if (bgUrl === null) {
-            htmlElement.style.setProperty("--html-bg-image", "none");
-            htmlElement.style.setProperty("--front-bg-image", "none");
-            return;
-        }
+                const top = triggerRect.top - actionMenu.offsetHeight;
 
-        const img = new Image();
-        img.src = bgUrl;
-        await img.decode();
-        let imgWhRate = img.width / img.height;
+                const left = Math.max(8, Math.min(triggerRect.left, viewportWidth - triggerRect.width - 8));
 
-        htmlElement.style.setProperty("--html-bg-image", `url("${bgUrl}")`);
-        htmlElement.style.setProperty("--html-bg-size", "cover");
-        if ((windowWhRate > imgWhRate && windowWhRate > 1.7) || (windowWhRate < imgWhRate && windowWhRate < 0.3)) {
-            htmlElement.style.setProperty("--html-bg-filter", "blur(12px) brightness(0.45)");
-            htmlElement.style.setProperty("--front-bg-image", `url("${bgUrl}")`);
-            htmlElement.style.setProperty("--front-bg-size", "contain");
-        } else {
-            htmlElement.style.setProperty("--html-bg-filter", "none");
-            htmlElement.style.setProperty("--front-bg-image", "none");
-            htmlElement.style.setProperty("--front-bg-size", "cover");
-        }
-    }
+                actionMenu.style.setProperty("--menu-left", `${left}px`);
+                actionMenu.style.setProperty("--menu-top", `${top}px`);
+                actionMenu.style.setProperty("--menu-width", `${triggerRect.width}px`);
+            }
 
-    window.addEventListener("resize", setBackground);
-    setBackground();
-</script>
+            function setActionOption(option) {
+                if (!actionValue || !actionLabel) return;
+                actionOptions.forEach((item) => {
+                    const isActive = item === option;
+                    item.classList.toggle("active", isActive);
+                    item.setAttribute("aria-selected", String(isActive));
+                });
+                actionValue.value = option.dataset.value;
+                actionLabel.textContent = option.textContent;
+            }
+
+            function closeActionMenu() {
+                if (!actionSelect || !actionTrigger) return;
+                actionSelect.classList.remove("open");
+                actionTrigger.setAttribute("aria-expanded", "false");
+                actionMenu?.classList.remove("is-open");
+            }
+
+            function openActionMenu() {
+                if (!actionSelect || !actionTrigger) return;
+                ensureActionMenuPortal();
+                actionSelect.classList.add("open");
+                actionTrigger.setAttribute("aria-expanded", "true");
+                actionMenu?.classList.add("is-open");
+                positionActionMenu();
+                const current = actionOptions.find((option) => option.classList.contains("active")) || actionOptions[0];
+                if (current) {
+                    current.focus();
+                }
+            }
+
+            actionTrigger?.addEventListener("click", () => {
+                if (actionSelect.classList.contains("open")) {
+                    closeActionMenu();
+                } else {
+                    openActionMenu();
+                }
+            });
+
+            actionOptions.forEach((option) => {
+                option.addEventListener("click", () => {
+                    setActionOption(option);
+                    closeActionMenu();
+                    actionTrigger.focus();
+                });
+            });
+
+            document.addEventListener("click", (event) => {
+                if (!actionSelect) return;
+                if (!actionSelect.contains(event.target) && !actionMenu?.contains(event.target)) {
+                    closeActionMenu();
+                }
+            });
+
+            window.addEventListener("resize", () => {
+                if (actionSelect?.classList.contains("open")) {
+                    positionActionMenu();
+                }
+            });
+
+            window.addEventListener("scroll", () => {
+                if (actionSelect?.classList.contains("open")) {
+                    positionActionMenu();
+                }
+            }, true);
+
+            document.addEventListener("keydown", (event) => {
+                if (event.key === "Escape") {
+                    closeActionMenu();
+                }
+            });
+
+            actionButton?.addEventListener("click", () => {
+                const selectedAction = actionValue.value;
+                switch (selectedAction) {
+                    case "LitePlay":
+                        LitePlay();
+                        break;
+                    case "Manga":
+                        Manga();
+                        break;
+                    default:
+                        alert(`Unknown action: ${selectedAction}`);
+                }
+            });
+
+            const activeAction = actionOptions.find((option) => option.classList.contains("active"));
+            if (activeAction) {
+                setActionOption(activeAction);
+            }
+            ensureActionMenuPortal();
+
+            // action functions
+            function LitePlay() {
+                const url = '/ex/lite-play/@Base64.ToBase64Url(Model.LocationName)/@(Base64.ToBase64Url(Model.RelativePath))';
+                location.href = url;
+            }
+
+            function Manga() {
+                const url = '/ex/manga/@Base64.ToBase64Url(Model.LocationName)/@(Base64.ToBase64Url(Model.RelativePath))';
+                location.href = url;
+            }
+
+    </script>
+    <script>
+            @* 同步内容区的内边距以适应工具栏高度 *@
+            const topBar = document.getElementById("topBar");
+            const bottomBar = document.getElementById("bottomBar");
+            const content = document.getElementById("content");
+            const toolbarGap = 12;
+
+            function syncContentPadding() {
+                if (!topBar || !bottomBar || !content) return;
+                const topBottom = topBar.getBoundingClientRect().bottom;
+                const bottomTop = bottomBar.getBoundingClientRect().top;
+                content.style.paddingTop = `${topBottom + toolbarGap}px`;
+                content.style.paddingBottom = `${window.innerHeight - bottomTop + toolbarGap}px`;
+            }
+
+            window.addEventListener("resize", syncContentPadding);
+            syncContentPadding();
+    </script>
+    <script>
+            @* 背景图片加载与设置 *@
+
+                async function loadBackgroundImage(windowWhRate) {
+                    let imageType;
+                    if (windowWhRate > 1) {
+                        imageType = "horizontal";
+                    } else {
+                        imageType = "vertical";
+                    }
+                    let url = `/api/bg?imageType=${imageType}`;
+                    const res = await fetch(url, { method: "GET" });
+                    if (!res.ok) {
+                        return null;
+                    }
+                    const blob = await res.blob();
+                    return URL.createObjectURL(blob);
+                }
+
+            let windowWhRate = window.innerWidth / window.innerHeight;
+            let bgUrl = null;
+
+            async function setBackground() {
+                let windowWhRateOld = windowWhRate;
+                windowWhRate = window.innerWidth / window.innerHeight;
+                if (bgUrl === null || (windowWhRateOld > 1 && windowWhRate <= 1) || (windowWhRateOld <= 1 && windowWhRate > 1)) {
+                    bgUrl = await loadBackgroundImage(windowWhRate);
+                }
+
+                const htmlElement = document.documentElement;
+                if (bgUrl === null) {
+                    htmlElement.style.setProperty("--html-bg-image", "none");
+                    htmlElement.style.setProperty("--front-bg-image", "none");
+                    return;
+                }
+
+                const img = new Image();
+                img.src = bgUrl;
+                await img.decode();
+                let imgWhRate = img.width / img.height;
+
+                htmlElement.style.setProperty("--html-bg-image", `url("${bgUrl}")`);
+                htmlElement.style.setProperty("--html-bg-size", "cover");
+                if ((windowWhRate > imgWhRate && windowWhRate > 1.7) || (windowWhRate < imgWhRate && windowWhRate < 0.3)) {
+                    htmlElement.style.setProperty("--html-bg-filter", "blur(4.8px) brightness(0.45)");
+                    htmlElement.style.setProperty("--front-bg-image", `url("${bgUrl}")`);
+                    htmlElement.style.setProperty("--front-bg-size", "contain");
+                } else {
+                    htmlElement.style.setProperty("--html-bg-filter", "none");
+                    htmlElement.style.setProperty("--front-bg-image", "none");
+                    htmlElement.style.setProperty("--front-bg-size", "cover");
+                }
+            }
+
+            window.addEventListener("resize", setBackground);
+            setBackground();
+    </script>
 </body>
 
 </html>

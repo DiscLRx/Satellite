@@ -1,0 +1,2235 @@
+﻿@page "/ex/lite-play/{locationNameBase64}/{relativePathBase64?}"
+@model Server.Pages.ExtraFunctionPages.LitePlayPage
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+    <meta name="format-detection" content="telephone=no,email=no,address=no"/>
+    <title>LITE PLAY</title>
+    @await Html.PartialAsync("/Pages/Shared/_SatelliteTheme.cshtml")
+    <link rel="stylesheet" href="/api/res/lib/css/videojs/video-player.css"/>
+    <style>
+        :root {
+            --card-blur: calc(var(--glass-blur) + 8.8px);
+            --btn-bg: rgba(255, 138, 61, 0.08);
+            --btn-bg-hover: rgba(255, 138, 61, 0.14);
+            --btn-border: rgba(255, 138, 61, 0.34);
+            --btn-border-hover: rgba(255, 138, 61, 0.52);
+            --body-overlay: rgba(6, 10, 16, 0);
+            --body-overlay-strong: rgba(6, 10, 16, 0.84);
+            --card-radius: 15px;
+            --radius-xl: 28px;
+            --radius-lg: 20px;
+            --radius-md: 14px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            min-height: 100%;
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        html::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: var(--html-bg-image, none);
+            background-position: center center;
+            background-size: var(--html-bg-size, cover);
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            filter: var(--html-bg-filter, none);
+            transform: scale(1.04);
+            z-index: -2;
+            pointer-events: none;
+        }
+
+        html::after {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: var(--front-bg-image, none);
+            background-position: center center;
+            background-size: var(--front-bg-size, contain);
+            background-repeat: no-repeat;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        body {
+            font-family: "Bahnschrift", "Segoe UI", sans-serif;
+            background-color: var(--body-overlay);
+            padding: 20px;
+            transition: background-color 0.22s ease;
+        }
+
+        body.is-light-off {
+            background-color: var(--body-overlay-strong);
+        }
+
+        a,
+        button,
+        input,
+        select,
+        textarea {
+            font: inherit;
+        }
+
+        button,
+        select,
+        textarea,
+        input {
+            color: inherit;
+        }
+
+        .page {
+            width: min(1360px, 100%);
+            margin: 0 auto;
+            min-height: calc(100vh - 40px);
+            display: grid;
+            gap: 18px;
+            align-content: start;
+            overflow: visible;
+        }
+
+        .surface {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--card-radius);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(var(--card-blur)) saturate(118%);
+            -webkit-backdrop-filter: blur(var(--card-blur)) saturate(118%);
+            min-width: 0;
+        }
+
+        .hero {
+            padding: 14px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .hero-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: nowrap;
+            justify-content: flex-end;
+        }
+
+        .eyebrow {
+            margin: 0;
+            color: var(--accent-strong);
+            font-size: 0.72rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .hero-heading {
+            display: grid;
+            gap: 6px;
+        }
+
+        .hero-title {
+            margin: 0;
+            font-size: clamp(0.98rem, 1.75vw, 1.26rem);
+            line-height: 1.1;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 46px;
+            padding: 0 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--btn-border);
+            text-decoration: none;
+            color: var(--text);
+            background: var(--btn-bg);
+            white-space: nowrap;
+            transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .back-link:hover,
+        .back-link:focus-visible {
+            outline: none;
+            border-color: var(--btn-border-hover);
+            background: var(--btn-bg-hover);
+            transform: translateY(-1px);
+        }
+
+        .light-toggle-btn {
+            cursor: pointer;
+            width: 46px;
+            min-width: 46px;
+            max-width: 46px;
+            height: 46px;
+            min-height: 46px;
+            max-height: 46px;
+            padding: 0;
+        }
+
+        .light-toggle-btn .icon-light-on,
+        .light-toggle-btn .icon-light-off {
+            display: none;
+            width: 22px;
+            height: 22px;
+        }
+
+        .light-toggle-btn[data-light="off"] .icon-light-off {
+            display: block;
+        }
+
+        .light-toggle-btn[data-light="on"] .icon-light-on {
+            display: block;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.85fr);
+            gap: 18px;
+            align-items: start;
+            min-width: 0;
+        }
+
+        .equal-height-card {
+            min-height: 420px;
+        }
+
+        .script-card {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .script-card .field--script {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .script-card .textarea {
+            flex: 1;
+            min-height: 0;
+        }
+
+        .queue-card {
+            min-height: 430px;
+        }
+
+        .player-panel,
+        .sidebar {
+            display: grid;
+            gap: 18px;
+            min-width: 0;
+        }
+
+        .block {
+            padding: 18px;
+        }
+
+        .player-frame-wrap {
+            padding: 0;
+        }
+
+        .player-frame {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            min-height: 0;
+            border-radius: var(--card-radius);
+            overflow: hidden;
+            background: #000;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+        }
+
+        .player-frame video-player {
+            display: block;
+            width: 100%;
+            height: 100%;
+            --media-border-radius: var(--card-radius);
+            --media-video-border-radius: var(--card-radius);
+            --media-surface-background-color: oklch(0.14 0 0 / 0.88);
+            --media-surface-inner-border-color: oklch(1 0 0 / 0.08);
+            --media-surface-outer-border-color: oklch(1 0 0 / 0.12);
+            --media-surface-shadow-color: oklch(0 0 0 / 0.4);
+            --media-surface-shadow: 0 0 24px oklch(0 0 0 / 0.36);
+        }
+
+        .player-frame .media-surface {
+            box-shadow: 0 0 24px oklch(0 0 0 / 0.36) !important;
+        }
+
+        .player-frame video-player,
+        .player-frame video-player *,
+        .player-frame video,
+        .player-frame .media-controls,
+        .player-frame .media-overlay {
+            cursor: default !important;
+            user-select: none !important;
+            -webkit-user-select: none !important;
+        }
+
+        .player-frame video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+        }
+
+        .player-frame media-container,
+        .player-frame .media-provider {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* Fix: volume slider needs explicit vertical dimensions independent of data-orientation */
+        .player-frame media-volume-slider {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 2rem !important;
+            height: 5rem !important;
+            position: relative !important;
+        }
+
+        .player-frame media-volume-slider .media-slider__track {
+            width: 0.25rem !important;
+            height: 100% !important;
+            background-color: oklch(1 0 0 / 0.15) !important;
+        }
+
+        .player-frame media-volume-slider .media-slider__fill {
+            inset-inline: 0 !important;
+            bottom: 0 !important;
+            height: var(--media-slider-fill, 0%) !important;
+        }
+
+        .player-frame media-volume-slider .media-slider__thumb {
+            left: 50% !important;
+            top: calc(100% - var(--media-slider-fill, 0%)) !important;
+            opacity: 1 !important;
+        }
+
+        .toolbar-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            width: 100%;
+        }
+
+        .action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 46px;
+            padding: 0 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--btn-border);
+            background: var(--btn-bg);
+            cursor: pointer;
+            line-height: 1;
+            text-align: center;
+            transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .action:hover,
+        .action:focus-visible {
+            outline: none;
+            border-color: var(--btn-border-hover);
+            background: var(--btn-bg-hover);
+            transform: translateY(-1px);
+        }
+
+        .action--primary {
+            border-color: var(--btn-border);
+            background: var(--btn-bg);
+        }
+
+        .action--primary:hover,
+        .action--primary:focus-visible {
+            border-color: var(--btn-border-hover);
+            background: var(--btn-bg-hover);
+        }
+
+        .action--icon {
+            width: 46px;
+            padding: 0;
+        }
+
+        .mode-icon {
+            width: 22px;
+            height: 22px;
+            display: block;
+        }
+
+
+        .panel-title {
+            margin: 0 0 14px;
+            font-size: 1rem;
+            line-height: 1;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-title .script-notice {
+            position: static;
+            transform: none;
+            min-width: 0;
+            max-width: none;
+            height: 30px;
+            font-size: 12px;
+            font-weight: normal;
+            padding: 0 12px;
+            line-height: 30px;
+            border-radius: 6px;
+            border: 1px solid rgba(94, 170, 196, 0.62);
+            background: rgba(78, 156, 184, 0.18);
+            color: rgba(221, 245, 252, 0.96);
+            box-shadow: none;
+            box-sizing: border-box;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.18s ease, visibility 0s linear 0.18s;
+        }
+
+        .panel-title .script-notice.is-visible {
+            transform: none;
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.18s ease, visibility 0s;
+        }
+
+        .field {
+            display: grid;
+            gap: 8px;
+        }
+
+        .field-label {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .metric-card {
+            border: 1px solid var(--line);
+            border-radius: var(--card-radius);
+            background: rgba(255, 255, 255, 0.18);
+            padding: 12px;
+            display: grid;
+            gap: 6px;
+        }
+
+        .metric-card--wide {
+            grid-column: 1 / -1;
+        }
+
+        .metric-controls-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            grid-column: 1 / -1;
+        }
+
+        .metric-controls-row .action,
+        .metric-controls-row .action--icon {
+            width: 100%;
+            max-width: none;
+        }
+
+        .metric-value {
+            font-size: 0.98rem;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+
+        .metric-subtext {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+
+        .metric-subtext--value-tone {
+            color: var(--text);
+        }
+
+        .visually-hidden {
+            position: absolute !important;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .select,
+        .textarea {
+            width: 100%;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--line);
+            background: var(--panel-strong);
+            color: var(--text);
+        }
+
+        .select {
+            min-height: 48px;
+            padding: 0 14px;
+        }
+
+        .script-select {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 46px;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .script-name-input {
+            min-width: 0;
+            transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .script-name-input[readonly] {
+            cursor: default;
+            background: rgba(36, 44, 56, 0.9);
+            border-color: rgba(118, 145, 176, 0.34);
+            color: #f2f6fb;
+            box-shadow: 0 0 0 1px rgba(118, 145, 176, 0.08);
+        }
+
+        .script-name-input:not([readonly]) {
+            background: rgba(24, 30, 40, 0.88);
+            border-color: rgba(90, 108, 132, 0.22);
+            color: rgba(214, 223, 233, 0.78);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.015);
+        }
+
+        .script-name-input::placeholder {
+            color: rgba(210, 221, 234, 0.52);
+        }
+
+        .select-trigger {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 46px;
+            height: 46px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--line);
+            background: var(--panel-strong);
+            color: var(--text);
+            cursor: pointer;
+            transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .select-trigger:hover,
+        .select-trigger:focus-visible {
+            outline: none;
+            border-color: rgba(255, 138, 61, 0.45);
+            background: rgba(255, 138, 61, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .select-arrow {
+            width: 12px;
+            height: 12px;
+            border-right: 2px solid currentColor;
+            border-bottom: 2px solid currentColor;
+            transform: rotate(45deg) translateY(-1px);
+            transition: transform 0.18s ease;
+        }
+
+        .script-select.open .select-arrow {
+            transform: rotate(-135deg) translateY(-1px);
+        }
+
+        .select-menu {
+            position: absolute;
+            left: 0;
+            top: calc(100% + 8px);
+            margin: 0;
+            padding: 6px;
+            list-style: none;
+            background: rgba(18, 24, 31, 0.62);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(calc(var(--card-blur) + 4px)) saturate(125%);
+            -webkit-backdrop-filter: blur(calc(var(--card-blur) + 4px)) saturate(125%);
+            max-height: 240px;
+            overflow-y: auto;
+            scrollbar-gutter: stable;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(100, 100, 100, 0.35) transparent;
+            z-index: 220;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: translateY(6px) scale(0.98);
+            transform-origin: top center;
+        }
+
+        .select-menu::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .select-menu::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .select-menu::-webkit-scrollbar-thumb {
+            background: rgba(100, 100, 100, 0.35);
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        .select-menu::-webkit-scrollbar-thumb:hover {
+            background: rgba(130, 130, 130, 0.49);
+        }
+
+        .select-menu.select-menu--portal {
+            position: fixed;
+            left: var(--menu-left, 0px);
+            top: var(--menu-top, 0px);
+            width: var(--menu-width, 240px);
+            right: auto;
+            bottom: auto;
+            transition: none;
+            z-index: 999;
+        }
+
+        .select-menu.select-menu--portal.is-open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: translateY(0) scale(1);
+        }
+
+        .select-option {
+            width: 100%;
+            border: 0;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--text);
+            text-align: left;
+            font-size: 0.92rem;
+            padding: 9px 10px;
+            cursor: pointer;
+        }
+
+        .select-option:hover,
+        .select-option:focus-visible {
+            outline: none;
+            background: var(--btn-bg-hover);
+            color: #ffffff;
+        }
+
+        .select-option.active {
+            background: var(--btn-bg);
+            color: #ffffff;
+        }
+
+        .textarea {
+            min-height: 240px;
+            resize: none;
+            padding: 14px;
+            font-size: 12px;
+            line-height: 1.6;
+            font-family: "IBM Plex Mono", "Cascadia Code", monospace;
+            scrollbar-gutter: stable;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(100, 100, 100, 0.35) transparent;
+        }
+
+        .textarea::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .textarea::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .textarea::-webkit-scrollbar-thumb {
+            background: rgba(100, 100, 100, 0.35);
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        .textarea::-webkit-scrollbar-thumb:hover {
+            background: rgba(130, 130, 130, 0.49);
+        }
+
+        .select:focus,
+        .textarea:focus {
+            outline: none;
+            border-color: rgba(255, 138, 61, 0.45);
+            box-shadow: 0 0 0 4px rgba(255, 138, 61, 0.08);
+        }
+
+        .queue-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: grid;
+            gap: 10px;
+            max-height: 460px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scrollbar-gutter: stable;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(100, 100, 100, 0.35) transparent;
+        }
+
+        .queue-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .queue-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .queue-list::-webkit-scrollbar-thumb {
+            background: rgba(100, 100, 100, 0.35);
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        .queue-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(130, 130, 130, 0.49);
+        }
+
+        .queue-item {
+            padding: 12px 14px;
+            border-radius: var(--card-radius);
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.18);
+            display: grid;
+            gap: 6px;
+            cursor: pointer;
+            transition: border-color 150ms ease, background-color 150ms ease;
+        }
+
+        .queue-item:hover {
+            border-color: var(--btn-border-hover);
+            background: var(--btn-bg-hover);
+        }
+
+        .queue-item--active {
+            border-color: var(--btn-border);
+            background: var(--btn-bg);
+        }
+
+        .queue-name {
+            font-size: 0.95rem;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+
+        .queue-path {
+            color: var(--text-muted);
+            font-size: 0.84rem;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+
+        .media-button--play .media-icon--restart,
+        .media-button--play .media-icon--play,
+        .media-button--play .media-icon--pause,
+        .media-button--mute .media-icon--volume-high,
+        .media-button--mute .media-icon--volume-low,
+        .media-button--mute .media-icon--volume-off,
+        .media-button--fullscreen .media-icon--fullscreen-enter,
+        .media-button--fullscreen .media-icon--fullscreen-exit {
+            width: 18px;
+            height: 18px;
+        }
+
+        @@media (max-width: 1100px) {
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @@media (max-width: 720px) {
+
+            .native-mobile-player .player-frame media-controls,
+            .native-mobile-player .player-frame media-overlay,
+            .native-mobile-player .player-frame media-buffering-indicator,
+            .native-mobile-player .player-frame media-error-dialog,
+            .native-mobile-player .player-frame media-tooltip,
+            .native-mobile-player .player-frame media-tooltip-group,
+            .native-mobile-player .player-frame media-popover,
+            .native-mobile-player .player-frame media-gesture,
+            .native-mobile-player .player-frame media-hotkey {
+                display: none !important;
+            }
+
+            body {
+                padding: 10px max(10px, env(safe-area-inset-right)) 10px max(10px, env(safe-area-inset-left));
+            }
+
+            .page {
+                min-height: calc(100vh - 24px);
+                gap: 12px;
+            }
+
+            .workspace,
+            .player-panel,
+            .sidebar {
+                gap: 12px;
+            }
+
+            .block {
+                padding: 12px;
+            }
+
+            .player-frame-wrap {
+                padding: 0;
+                border: none;
+                box-shadow: none;
+                background: transparent;
+            }
+
+            .hero {
+                flex-direction: column;
+                align-items: stretch;
+                order: 10;
+            }
+
+            .workspace {
+                order: 1;
+            }
+
+            .back-link {
+                width: 100%;
+                white-space: nowrap;
+            }
+
+            .hero-actions {
+                width: 100%;
+                justify-content: stretch;
+            }
+
+            .light-toggle-btn {
+                width: 46px;
+            }
+
+            .player-frame {
+                min-height: 0;
+            }
+
+            .player-frame video {
+                object-fit: contain;
+                background: #000;
+            }
+
+            .equal-height-card,
+            .queue-card {
+                min-height: 0;
+            }
+
+            .queue-list {
+                max-height: 320px;
+            }
+
+            .toolbar-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .save-action-wrap {
+                width: 100%;
+            }
+
+            .select-menu.select-menu--portal {
+                left: var(--menu-left, 10px);
+                right: auto;
+                top: var(--menu-top, 10px);
+                bottom: auto;
+                width: var(--menu-width, calc(100vw - 20px));
+                max-height: min(50vh, 340px);
+                border-radius: 18px;
+                transform-origin: top center;
+            }
+
+            .action {
+                width: 100%;
+                max-width: none;
+            }
+
+            .metrics-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .metrics-grid .metric-card {
+                padding: 10px;
+                border-radius: var(--card-radius);
+                gap: 4px;
+            }
+
+            .metrics-grid .field-label {
+                font-size: 0.7rem;
+                letter-spacing: 0.05em;
+            }
+
+            .metrics-grid .metric-value {
+                font-size: 0.9rem;
+                line-height: 1.28;
+            }
+
+            .metrics-grid .metric-subtext {
+                font-size: 0.78rem;
+                line-height: 1.28;
+            }
+
+            .metric-controls-row {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .player-frame media-mute-button,
+            .player-frame .media-popover--volume,
+            .player-frame #video-volume-popover {
+                display: none !important;
+            }
+
+            .sidebar .queue-card {
+                order: -1;
+            }
+
+            .sidebar .script-card {
+                order: 1;
+            }
+        }
+    </style>
+    <script>
+        (function () {
+            const isMobile = window.matchMedia("(max-width: 720px)").matches;
+            if (isMobile) {
+                document.documentElement.classList.add("native-mobile-player");
+                return;
+            }
+
+            const moduleScript = document.createElement("script");
+            moduleScript.type = "module";
+            moduleScript.src = "/api/res/lib/js/videojs/video-ui.js";
+            document.head.append(moduleScript);
+        })();
+    </script>
+</head>
+
+<body>
+<div class="page">
+    <header class="surface hero">
+        <div class="hero-heading">
+            <p class="eyebrow">Satellite</p>
+            <h1 class="hero-title">LITE PLAY</h1>
+        </div>
+        <div class="hero-actions">
+            <button id="lightToggleBtn" class="back-link light-toggle-btn" type="button" data-light="off"
+                    aria-pressed="true">
+                <img class="icon-light-on" src="/api/res/icon/btn-light-on.svg" alt="开灯" aria-hidden="true"/>
+                <img class="icon-light-off" src="/api/res/icon/btn-light-off.svg" alt="关灯" aria-hidden="true"/>
+            </button>
+            <a class="back-link" href="/b/@Model.LocationBase64/@Model.PathBase64">Browse</a>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <section class="player-panel">
+            <section class="surface player-frame-wrap equal-height-card">
+                <div class="player-frame">
+                    <video-player>
+                        <media-container class="media-default-skin media-default-skin--video">
+                            <video id="litePlayVideo" playsinline></video>
+
+                            <media-buffering-indicator class="media-buffering-indicator">
+                                <div class="media-surface">
+                                    <svg class="media-icon" xmlns="http://www.w3.org/2000/svg" width="18"
+                                         height="18" fill="currentColor" aria-hidden="true" viewBox="0 0 18 18">
+                                        <rect width="2" height="5" x="8" y=".5" opacity=".5" rx="1">
+                                            <animate attributeName="opacity" begin="0s" calcMode="linear" dur="1s"
+                                                     repeatCount="indefinite" values="1;0"/>
+                                        </rect>
+                                        <rect width="2" height="5" x="12.243" y="2.257" opacity=".45" rx="1"
+                                              transform="rotate(45 13.243 4.757)">
+                                            <animate attributeName="opacity" begin="0.125s" calcMode="linear"
+                                                     dur="1s" repeatCount="indefinite" values="1;0"/>
+                                        </rect>
+                                        <rect width="5" height="2" x="12.5" y="8" opacity=".4" rx="1">
+                                            <animate attributeName="opacity" begin="0.25s" calcMode="linear"
+                                                     dur="1s" repeatCount="indefinite" values="1;0"/>
+                                        </rect>
+                                        <rect width="5" height="2" x="10.743" y="12.243" opacity=".35" rx="1"
+                                              transform="rotate(45 13.243 13.243)">
+                                            <animate attributeName="opacity" begin="0.375s" calcMode="linear"
+                                                     dur="1s" repeatCount="indefinite" values="1;0"/>
+                                        </rect>
+                                        <rect width="2" height="5" x="8" y="12.5" opacity=".3" rx="1">
+                                            <animate attributeName="opacity" begin="0.5s" calcMode="linear" dur="1s"
+                                                     repeatCount="indefinite" values="1;0"/>
+                                        </rect>
+                                        <rect width="2" height="5" x="3.757" y="10.743" opacity=".25" rx="1"
+                                              transform="rotate(45 4.757 13.243)">
+                                            <animate attributeName="opacity" begin="0.625s" calcMode="linear"
+                                                     dur="1s" repeatCount="indefinite" values="1;0"/>
+                                        </rect>
+                                        <rect width="5" height="2" x=".5" y="8" opacity=".15" rx="1">
+                                            <animate attributeName="opacity" begin="0.75s" calcMode="linear"
+                                                     dur="1s" repeatCount="indefinite" values="1;0"/>
+                                        </rect>
+                                        <rect width="5" height="2" x="2.257" y="3.757" opacity=".1" rx="1"
+                                              transform="rotate(45 4.757 4.757)">
+                                            <animate attributeName="opacity" begin="0.875s" calcMode="linear"
+                                                     dur="1s" repeatCount="indefinite" values="1;0"/>
+                                        </rect>
+                                    </svg>
+                                </div>
+                            </media-buffering-indicator>
+
+                            <media-error-dialog class="media-error">
+                                <div class="media-error__dialog media-surface">
+                                    <div class="media-error__content">
+                                        <media-alert-dialog-title class="media-error__title">Something went
+                                            wrong.
+                                        </media-alert-dialog-title>
+                                        <media-alert-dialog-description
+                                            class="media-error__description"></media-alert-dialog-description>
+                                    </div>
+                                    <div class="media-error__actions">
+                                        <media-alert-dialog-close class="media-button media-button--primary">OK
+                                        </media-alert-dialog-close>
+                                    </div>
+                                </div>
+                            </media-error-dialog>
+
+                            <media-controls class="media-surface media-controls">
+                                <media-tooltip-group>
+                                    <div class="media-button-group">
+                                        <media-play-button commandfor="play-tooltip"
+                                                           class="media-button media-button--subtle media-button--icon media-button--play">
+                                            <img class="media-icon media-icon--restart"
+                                                 src="/api/res/icon/player-play-restart.svg" alt=""
+                                                 aria-hidden="true"/>
+                                            <img class="media-icon media-icon--play"
+                                                 src="/api/res/icon/player-play.svg" alt="" aria-hidden="true"/>
+                                            <img class="media-icon media-icon--pause"
+                                                 src="/api/res/icon/player-pause.svg" alt="" aria-hidden="true"/>
+                                        </media-play-button>
+                                        <media-tooltip id="play-tooltip" side="top"
+                                                       class="media-surface media-tooltip"></media-tooltip>
+
+                                        <media-seek-button commandfor="seek-backward-tooltip" seconds="-10"
+                                                           class="media-button media-button--subtle media-button--icon media-button--seek">
+                                                <span class="media-icon__container">
+                                                    <img class="media-icon media-icon--flipped"
+                                                         src="/api/res/icon/player-seek.svg" alt="" aria-hidden="true"/>
+                                                    <span class="media-icon__label">10</span>
+                                                </span>
+                                        </media-seek-button>
+                                        <media-tooltip id="seek-backward-tooltip" side="top"
+                                                       class="media-surface media-tooltip">
+                                            Seek backward 10 seconds
+                                        </media-tooltip>
+
+                                        <media-seek-button commandfor="seek-forward-tooltip" seconds="10"
+                                                           class="media-button media-button--subtle media-button--icon media-button--seek">
+                                                <span class="media-icon__container">
+                                                    <img class="media-icon" src="/api/res/icon/player-seek.svg" alt=""
+                                                         aria-hidden="true"/>
+                                                    <span class="media-icon__label">10</span>
+                                                </span>
+                                        </media-seek-button>
+                                        <media-tooltip id="seek-forward-tooltip" side="top"
+                                                       class="media-surface media-tooltip">
+                                            Seek forward 10 seconds
+                                        </media-tooltip>
+                                    </div>
+
+                                    <div class="media-time-controls">
+                                        <media-time type="current" class="media-time"></media-time>
+                                        <media-time-slider class="media-slider">
+                                            <media-slider-track class="media-slider__track">
+                                                <media-slider-fill class="media-slider__fill"></media-slider-fill>
+                                                <media-slider-buffer
+                                                    class="media-slider__buffer"></media-slider-buffer>
+                                            </media-slider-track>
+                                            <media-slider-thumb class="media-slider__thumb"></media-slider-thumb>
+
+                                            <div class="media-surface media-preview media-slider__preview">
+                                                <media-slider-thumbnail
+                                                    class="media-preview__thumbnail"></media-slider-thumbnail>
+                                                <media-slider-value type="pointer"
+                                                                    class="media-time media-preview__time"></media-slider-value>
+                                                <svg class="media-preview__spinner media-icon"
+                                                     xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                                     fill="currentColor" aria-hidden="true" viewBox="0 0 18 18">
+                                                    <rect width="2" height="5" x="8" y=".5" opacity=".5" rx="1">
+                                                        <animate attributeName="opacity" begin="0s"
+                                                                 calcMode="linear" dur="1s" repeatCount="indefinite"
+                                                                 values="1;0"/>
+                                                    </rect>
+                                                    <rect width="2" height="5" x="12.243" y="2.257" opacity=".45"
+                                                          rx="1" transform="rotate(45 13.243 4.757)">
+                                                        <animate attributeName="opacity" begin="0.125s"
+                                                                 calcMode="linear" dur="1s" repeatCount="indefinite"
+                                                                 values="1;0"/>
+                                                    </rect>
+                                                    <rect width="5" height="2" x="12.5" y="8" opacity=".4" rx="1">
+                                                        <animate attributeName="opacity" begin="0.25s"
+                                                                 calcMode="linear" dur="1s" repeatCount="indefinite"
+                                                                 values="1;0"/>
+                                                    </rect>
+                                                    <rect width="5" height="2" x="10.743" y="12.243" opacity=".35"
+                                                          rx="1" transform="rotate(45 13.243 13.243)">
+                                                        <animate attributeName="opacity" begin="0.375s"
+                                                                 calcMode="linear" dur="1s" repeatCount="indefinite"
+                                                                 values="1;0"/>
+                                                    </rect>
+                                                    <rect width="2" height="5" x="8" y="12.5" opacity=".3" rx="1">
+                                                        <animate attributeName="opacity" begin="0.5s"
+                                                                 calcMode="linear" dur="1s" repeatCount="indefinite"
+                                                                 values="1;0"/>
+                                                    </rect>
+                                                    <rect width="2" height="5" x="3.757" y="10.743" opacity=".25"
+                                                          rx="1" transform="rotate(45 4.757 13.243)">
+                                                        <animate attributeName="opacity" begin="0.625s"
+                                                                 calcMode="linear" dur="1s" repeatCount="indefinite"
+                                                                 values="1;0"/>
+                                                    </rect>
+                                                    <rect width="5" height="2" x=".5" y="8" opacity=".15" rx="1">
+                                                        <animate attributeName="opacity" begin="0.75s"
+                                                                 calcMode="linear" dur="1s" repeatCount="indefinite"
+                                                                 values="1;0"/>
+                                                    </rect>
+                                                    <rect width="5" height="2" x="2.257" y="3.757" opacity=".1"
+                                                          rx="1" transform="rotate(45 4.757 4.757)">
+                                                        <animate attributeName="opacity" begin="0.875s"
+                                                                 calcMode="linear" dur="1s" repeatCount="indefinite"
+                                                                 values="1;0"/>
+                                                    </rect>
+                                                </svg>
+                                            </div>
+                                        </media-time-slider>
+                                        <media-time type="duration" class="media-time"></media-time>
+                                    </div>
+
+                                    <div class="media-button-group">
+                                        <media-playback-rate-button commandfor="playback-rate-tooltip"
+                                                                    class="media-button media-button--subtle media-button--icon media-button--playback-rate"></media-playback-rate-button>
+                                        <media-tooltip id="playback-rate-tooltip" side="top"
+                                                       class="media-surface media-tooltip">
+                                            Toggle playback rate
+                                        </media-tooltip>
+
+                                        <media-mute-button commandfor="video-volume-popover"
+                                                           class="media-button media-button--subtle media-button--icon media-button--mute">
+                                            <img class="media-icon media-icon--volume-off"
+                                                 src="/api/res/icon/player-volume-off.svg" alt=""
+                                                 aria-hidden="true"/>
+                                            <img class="media-icon media-icon--volume-low"
+                                                 src="/api/res/icon/player-volume-low.svg" alt=""
+                                                 aria-hidden="true"/>
+                                            <img class="media-icon media-icon--volume-high"
+                                                 src="/api/res/icon/player-volume-high.svg" alt=""
+                                                 aria-hidden="true"/>
+                                        </media-mute-button>
+
+                                        <media-popover id="video-volume-popover" open-on-hover delay="200"
+                                                       close-delay="100" side="top"
+                                                       class="media-surface media-popover media-popover--volume">
+                                            <media-volume-slider class="media-slider" orientation="vertical"
+                                                                 thumb-alignment="edge">
+                                                <media-slider-track class="media-slider__track">
+                                                    <media-slider-fill
+                                                        class="media-slider__fill"></media-slider-fill>
+                                                </media-slider-track>
+                                                <media-slider-thumb
+                                                    class="media-slider__thumb media-slider__thumb--persistent"></media-slider-thumb>
+                                            </media-volume-slider>
+                                        </media-popover>
+
+                                        <media-captions-button commandfor="captions-tooltip"
+                                                               class="media-button media-button--subtle media-button--icon media-button--captions">
+                                            <img class="media-icon media-icon--captions-off"
+                                                 src="/api/res/icon/player-captions-off.svg" alt=""
+                                                 aria-hidden="true"/>
+                                            <img class="media-icon media-icon--captions-on"
+                                                 src="/api/res/icon/player-captions-on.svg" alt=""
+                                                 aria-hidden="true"/>
+                                        </media-captions-button>
+                                        <media-tooltip id="captions-tooltip" side="top"
+                                                       class="media-surface media-tooltip"></media-tooltip>
+
+                                        <media-pip-button commandfor="pip-tooltip"
+                                                          class="media-button media-button--subtle media-button--icon media-button--pip">
+                                            <img class="media-icon media-icon--pip-enter"
+                                                 src="/api/res/icon/player-pip-enter.svg" alt=""
+                                                 aria-hidden="true"/>
+                                            <img class="media-icon media-icon--pip-exit"
+                                                 src="/api/res/icon/player-pip-exit.svg" alt="" aria-hidden="true"/>
+                                        </media-pip-button>
+                                        <media-tooltip id="pip-tooltip" side="top"
+                                                       class="media-surface media-tooltip"></media-tooltip>
+
+                                        <media-fullscreen-button commandfor="fullscreen-tooltip"
+                                                                 class="media-button media-button--subtle media-button--icon media-button--fullscreen">
+                                            <img class="media-icon media-icon--fullscreen-enter"
+                                                 src="/api/res/icon/player-fullscreen-enter.svg" alt=""
+                                                 aria-hidden="true"/>
+                                            <img class="media-icon media-icon--fullscreen-exit"
+                                                 src="/api/res/icon/player-fullscreen-exit.svg" alt=""
+                                                 aria-hidden="true"/>
+                                        </media-fullscreen-button>
+                                        <media-tooltip id="fullscreen-tooltip" side="top"
+                                                       class="media-surface media-tooltip"></media-tooltip>
+                                    </div>
+                                </media-tooltip-group>
+                            </media-controls>
+
+                            <div class="media-overlay"></div>
+
+                            <!-- Hotkeys -->
+                            <media-hotkey keys="Space" action="togglePaused"></media-hotkey>
+                            <media-hotkey keys="k" action="togglePaused"></media-hotkey>
+                            <media-hotkey keys="m" action="toggleMuted"></media-hotkey>
+                            <media-hotkey keys="f" action="toggleFullscreen"></media-hotkey>
+                            <media-hotkey keys="c" action="toggleSubtitles"></media-hotkey>
+                            <media-hotkey keys="i" action="togglePictureInPicture"></media-hotkey>
+                            <media-hotkey keys="ArrowRight" action="seekStep" value="5"></media-hotkey>
+                            <media-hotkey keys="ArrowLeft" action="seekStep" value="-5"></media-hotkey>
+                            <media-hotkey keys="l" action="seekStep" value="10"></media-hotkey>
+                            <media-hotkey keys="j" action="seekStep" value="-10"></media-hotkey>
+                            <media-hotkey keys="ArrowUp" action="volumeStep" value="0.05"></media-hotkey>
+                            <media-hotkey keys="ArrowDown" action="volumeStep" value="-0.05"></media-hotkey>
+                            <media-hotkey keys="0-9" action="seekToPercent"></media-hotkey>
+                            <media-hotkey keys="Home" action="seekToPercent" value="0"></media-hotkey>
+                            <media-hotkey keys="End" action="seekToPercent" value="100"></media-hotkey>
+                            <media-hotkey keys=">" action="speedUp"></media-hotkey>
+                            <media-hotkey keys="<" action="speedDown"></media-hotkey>
+
+                            <!-- Gestures -->
+                            <media-gesture type="tap" action="togglePaused" pointer="mouse"
+                                           region="center"></media-gesture>
+                            <media-gesture type="tap" action="toggleControls" pointer="touch"></media-gesture>
+                            <media-gesture type="doubletap" action="seekStep" value="-10"
+                                           region="left"></media-gesture>
+                            <media-gesture type="doubletap" action="toggleFullscreen"
+                                           region="center"></media-gesture>
+                            <media-gesture type="doubletap" action="seekStep" value="10"
+                                           region="right"></media-gesture>
+                        </media-container>
+                    </video-player>
+                </div>
+            </section>
+
+            <section class="surface block">
+                <div class="metrics-grid">
+                    <div class="toolbar-row metric-controls-row">
+                        <button id="prevBtn" class="action action--icon" type="button" aria-label="上一条">
+                            <img class="mode-icon" src="/api/res/icon/btn-prev.svg" alt="上一条"/>
+                        </button>
+                        <button id="nextBtn" class="action action--icon" type="button" aria-label="下一条">
+                            <img class="mode-icon" src="/api/res/icon/btn-next.svg" alt="下一条"/>
+                        </button>
+                        <button id="playModeBtn" class="action action--icon" type="button" aria-label="播放模式切换">
+                            <img id="playModeIcon" class="mode-icon" src="/api/res/icon/btn-sequence.svg"
+                                 alt="顺序播放"/>
+                        </button>
+                    </div>
+                    <div class="metric-card metric-card--wide">
+                        <div class="field-label">名称</div>
+                        <div id="currentText" class="metric-value">未选择视频</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="field-label">序号</div>
+                        <div id="counterText" class="metric-value">0 / 0</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="field-label">大小</div>
+                        <div id="currentSizeText" class="metric-value">--</div>
+                        <span id="currentExtText" class="visually-hidden">--</span>
+                    </div>
+                    <div class="metric-card metric-card--wide">
+                        <div class="field-label">路径</div>
+                        <div id="currentPathText" class="metric-subtext metric-subtext--value-tone">等待加载播放列表
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </section>
+
+        <aside class="sidebar">
+            <section class="surface block equal-height-card script-card">
+                <h2 class="panel-title">筛选
+                    <div id="scriptNotice" class="script-notice" role="alert"
+                         aria-live="polite"></div>
+                </h2>
+                <div class="field">
+                    <div id="scriptSelect" class="script-select">
+                        <input id="scriptNameInput" class="select script-name-input" type="text" value="All videos"
+                               placeholder="" autocomplete="off" readonly aria-label="筛选名称"/>
+                        <button id="scriptMenuTrigger" class="select-trigger" type="button" aria-haspopup="listbox"
+                                aria-expanded="false" aria-controls="scriptMenu" aria-label="选择筛选">
+                            <span class="select-arrow" aria-hidden="true"></span>
+                        </button>
+                        <ul id="scriptMenu" class="select-menu" role="listbox" tabindex="-1" aria-label="筛选选择"></ul>
+                    </div>
+                </div>
+                <div class="field field--script" style="margin-top: 12px;">
+                    <label class="field-label" for="scriptInput">JavaScript 函数体</label>
+                    <textarea id="scriptInput" class="textarea" spellcheck="false"></textarea>
+                </div>
+                <div class="toolbar-row" style="margin-top: 12px;">
+                    <button id="newScriptBtn" class="action" type="button">新建</button>
+                    <button id="formatScriptBtn" class="action" type="button">格式化</button>
+                    <button id="saveScriptBtn" class="action" type="button">保存</button>
+                    <button id="applyScriptBtn" class="action action--primary" type="button">应用</button>
+                </div>
+            </section>
+
+            <section class="surface block queue-card">
+                <h2 class="panel-title">播放队列</h2>
+                <ul id="queueList" class="queue-list"></ul>
+            </section>
+        </aside>
+    </div>
+</div>
+
+<script src="/api/res/lib/js/prettier/standalone.js"></script>
+<script src="/api/res/lib/js/prettier/parser-babel.js"></script>
+<script>
+    const elements = {
+        video: document.getElementById("litePlayVideo"),
+        playerFrame: document.querySelector(".player-frame"),
+        scriptSelect: document.getElementById("scriptSelect"),
+        scriptNameInput: document.getElementById("scriptNameInput"),
+        scriptMenuTrigger: document.getElementById("scriptMenuTrigger"),
+        scriptMenu: document.getElementById("scriptMenu"),
+        scriptInput: document.getElementById("scriptInput"),
+        newScriptBtn: document.getElementById("newScriptBtn"),
+        formatScriptBtn: document.getElementById("formatScriptBtn"),
+        saveScriptBtn: document.getElementById("saveScriptBtn"),
+        scriptNotice: document.getElementById("scriptNotice"),
+        applyScriptBtn: document.getElementById("applyScriptBtn"),
+        lightToggleBtn: document.getElementById("lightToggleBtn"),
+        playModeBtn: document.getElementById("playModeBtn"),
+        playModeIcon: document.getElementById("playModeIcon"),
+        prevBtn: document.getElementById("prevBtn"),
+        nextBtn: document.getElementById("nextBtn"),
+        counterText: document.getElementById("counterText"),
+        currentText: document.getElementById("currentText"),
+        currentPathText: document.getElementById("currentPathText"),
+        currentExtText: document.getElementById("currentExtText"),
+        currentSizeText: document.getElementById("currentSizeText"),
+        queueList: document.getElementById("queueList")
+    };
+</script>
+<script>
+    // 筛选脚本管理
+
+    let scriptNoticeTimerId = null;
+
+    function showScriptNotice(message) {
+        if (!elements.scriptNotice) {
+            return;
+        }
+
+        if (scriptNoticeTimerId) {
+            clearTimeout(scriptNoticeTimerId);
+        }
+
+        elements.scriptNotice.textContent = message;
+        elements.scriptNotice.classList.add("is-visible");
+
+        scriptNoticeTimerId = setTimeout(() => {
+            elements.scriptNotice.classList.remove("is-visible");
+            scriptNoticeTimerId = null;
+        }, 2000);
+    }
+
+    const presetScripts = {
+        "All videos": {
+            isPreset: true,
+            script: "return true;"
+        },
+        "MP4 only": {
+            isPreset: true,
+            script: "return video.extension === '.mp4';"
+        },
+        "Large files (> 300MB)": {
+            isPreset: true,
+            script: "return video.sizeBytes > 300 * 1024 * 1024;"
+        },
+        "Long videos (> 15 min)": {
+            isPreset: true,
+            script: "return (video.durationSeconds || 0) > 15 * 60;"
+        }
+    };
+
+    const savedScripts = @Html.Raw(Model.LocationVideoFilterScriptsJson);
+
+    const filterScripts = {};
+    for (const [name, scriptInfo] of Object.entries(presetScripts)) {
+        filterScripts[name] = scriptInfo;
+    }
+    for (const [name, script] of Object.entries(savedScripts)) {
+        filterScripts[name] = {
+            isPreset: false,
+            script
+        };
+    }
+
+    function mergeServerScriptsIntoFilterScripts(serverScripts) {
+        for (const scriptName of Object.keys(filterScripts)) {
+            delete filterScripts[scriptName];
+        }
+
+        for (const [name, scriptInfo] of Object.entries(presetScripts)) {
+            filterScripts[name] = scriptInfo;
+        }
+
+        if (!serverScripts || typeof serverScripts !== "object") {
+            return;
+        }
+
+        for (const [name, script] of Object.entries(serverScripts)) {
+            filterScripts[name] = {
+                isPreset: false,
+                script: String(script ?? "")
+            };
+        }
+    }
+
+    let currentScriptName = Object.keys(filterScripts)[0] || "";
+    let isEditingNewScript = false;
+
+    function appendFilterScriptOptions() {
+        if (!elements.scriptMenu) {
+            return;
+        }
+
+        elements.scriptMenu.textContent = "";
+
+        for (const scriptName of Object.keys(filterScripts)) {
+            const item = document.createElement("li");
+            const button = document.createElement("button");
+            const isActive = scriptName === currentScriptName;
+
+            button.type = "button";
+            button.className = `select-option${isActive ? " active" : ""}`;
+            button.setAttribute("role", "option");
+            button.setAttribute("aria-selected", String(isActive));
+            button.dataset.scriptName = scriptName;
+            button.textContent = scriptName;
+
+            item.append(button);
+            elements.scriptMenu.append(item);
+        }
+    }
+
+    function selectFilterScript(scriptName) {
+        if (!scriptName || !filterScripts[scriptName]) {
+            return;
+        }
+        isEditingNewScript = false;
+        const scriptKeys = Object.keys(filterScripts);
+        if (!scriptKeys.includes(scriptName)) {
+            scriptName = scriptKeys[0];
+        } 
+
+        currentScriptName = scriptName;
+        const scriptInfo = filterScripts[scriptName];
+        elements.scriptNameInput.value = scriptName;
+        elements.scriptInput.value = scriptInfo.script;
+
+        elements.scriptNameInput.readOnly = true;
+        elements.scriptInput.readOnly = scriptInfo.isPreset;
+        elements.saveScriptBtn.disabled = scriptInfo.isPreset;
+        elements.formatScriptBtn.disabled = scriptInfo.isPreset;
+
+        appendFilterScriptOptions();
+    }
+
+    function isScriptMenuOpen() {
+        return elements.scriptMenu?.classList.contains("is-open") || false;
+    }
+
+    function ensureScriptMenuPortal() {
+        if (!elements.scriptMenu) {
+            return;
+        }
+
+        if (elements.scriptMenu.parentElement !== document.body) {
+            document.body.append(elements.scriptMenu);
+        }
+
+        elements.scriptMenu.classList.add("select-menu--portal");
+    }
+
+    function positionScriptMenu() {
+        if (!elements.scriptMenu || !elements.scriptMenuTrigger) {
+            return;
+        }
+
+        const isMobileViewport = window.matchMedia("(max-width: 720px)").matches
+            || document.documentElement.classList.contains("native-mobile-player");
+
+        // position: fixed uses viewport coordinates; getBoundingClientRect keeps alignment correct while scrolling.
+        const inputRect = elements.scriptNameInput.getBoundingClientRect();
+        const viewportWidth = document.documentElement.clientWidth;
+        const minInset = isMobileViewport ? 10 : 8;
+
+        let width = inputRect.width;
+        if (!Number.isFinite(width) || width <= 0) {
+            width = elements.scriptNameInput.offsetWidth || 220;
+        }
+
+        let left = inputRect.left;
+        let right = left + width;
+
+        if (left < minInset) {
+            left = minInset;
+            right = left + width;
+        }
+
+        if (right > viewportWidth - minInset) {
+            const maxWidth = Math.max(220, viewportWidth - minInset * 2);
+            width = Math.min(width, maxWidth);
+            left = Math.max(minInset, viewportWidth - minInset - width);
+        }
+
+        const top = inputRect.bottom;
+
+        elements.scriptMenu.style.setProperty("--menu-left", `${Math.round(left)}px`);
+        elements.scriptMenu.style.setProperty("--menu-top", `${Math.round(top)}px`);
+        elements.scriptMenu.style.setProperty("--menu-width", `${Math.round(width)}px`);
+    }
+
+    function openScriptMenu() {
+        ensureScriptMenuPortal();
+        positionScriptMenu();
+        elements.scriptSelect?.classList.add("open");
+        elements.scriptMenu?.classList.add("is-open");
+        elements.scriptMenuTrigger?.setAttribute("aria-expanded", "true");
+
+        const activeOption = elements.scriptMenu?.querySelector(".select-option.active")
+            || elements.scriptMenu?.querySelector(".select-option");
+        activeOption?.focus();
+    }
+
+    function closeScriptMenu() {
+        elements.scriptSelect?.classList.remove("open");
+        elements.scriptMenu?.classList.remove("is-open");
+        elements.scriptMenuTrigger?.setAttribute("aria-expanded", "false");
+    }
+
+    function toggleScriptMenu() {
+        if (isScriptMenuOpen()) {
+            closeScriptMenu();
+            return;
+        }
+
+        openScriptMenu();
+    }
+
+    // 下拉菜单项选择
+    if (elements.scriptMenu) {
+        elements.scriptMenu.addEventListener("click", (event) => {
+            const button = event.target.closest("button.select-option");
+            if (!button) {
+                return;
+            }
+
+            const selectedScriptName = button.dataset.scriptName || button.textContent;
+            selectFilterScript(selectedScriptName);
+            closeScriptMenu();
+        });
+    }
+
+    // 触发器交互
+    elements.scriptMenuTrigger?.addEventListener("click", () => {
+        toggleScriptMenu();
+    });
+
+    // 外部点击关闭
+    document.addEventListener("click", (event) => {
+        if (!isScriptMenuOpen()) {
+            return;
+        }
+
+        const target = event.target;
+        const isInsideTrigger = elements.scriptSelect?.contains(target);
+        const isInsideMenu = elements.scriptMenu?.contains(target);
+        if (isInsideTrigger || isInsideMenu) {
+            return;
+        }
+
+        closeScriptMenu();
+    });
+
+    // 打开状态下保持定位
+    window.addEventListener("resize", () => {
+        if (isScriptMenuOpen()) {
+            positionScriptMenu();
+        }
+    });
+
+    window.addEventListener("scroll", () => {
+        if (isScriptMenuOpen()) {
+            positionScriptMenu();
+        }
+    }, true);
+
+    appendFilterScriptOptions();
+    if (currentScriptName) {
+        selectFilterScript(currentScriptName);
+    }
+
+    // 格式化
+    elements.formatScriptBtn?.addEventListener("click", () => {
+        const rawScript = elements.scriptInput.value || "";
+        const normalizedScript = normalizeFilterScriptBody(rawScript);
+
+        try {
+            const formatted = prettier.format(normalizedScript, {
+                parser: "babel",
+                plugins: prettierPlugins,
+                singleQuote: true,
+                trailingComma: "all",
+                printWidth: 60
+            }).trim();
+
+            elements.scriptInput.value = formatted;
+        } catch (error) {
+            console.error("Failed to format script:", error);
+            showScriptNotice("格式化失败，请检查脚本语法");
+        }
+    });
+
+    //新建
+    elements.newScriptBtn?.addEventListener("click", () => {
+        isEditingNewScript = true;
+        elements.scriptNameInput.value = "";
+        elements.scriptInput.value = "";
+        elements.scriptNameInput.readOnly = false;
+        elements.scriptInput.readOnly = false;
+        elements.saveScriptBtn.disabled = false;
+        elements.formatScriptBtn.disabled = false;
+        elements.scriptNameInput.focus();
+    });
+
+    // 保存
+    elements.saveScriptBtn?.addEventListener("click", async () => {
+        const name = elements.scriptNameInput.value.trim();
+        const script = elements.scriptInput.value.trim();
+
+        if (!name) {
+            showScriptNotice("请为筛选脚本输入名称");
+            return;
+        }
+
+        if (!script && isEditingNewScript) {
+            showScriptNotice("请为筛选脚本输入 JavaScript 函数体");
+            return;
+        }
+
+
+        if (Object.keys(filterScripts).includes(name) && isEditingNewScript) {
+            const existing = filterScripts[name];
+            if (existing.isPreset) {
+                showScriptNotice("无法覆盖预设脚本，请使用其他名称");
+                return;
+            } else {
+                showScriptNotice("已存在同名脚本，请使用其他名称");
+                return;
+            }
+        }
+        await fetch('/api/ex/videoFilterScript', {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                scriptName: name,
+                scriptBody: script
+            })
+        }).then(async response => {
+            if (!response.ok) {
+                throw new Error();
+            }
+
+            const serverScripts = await response.json().catch(() => ({}));
+            mergeServerScriptsIntoFilterScripts(serverScripts);
+            isEditingNewScript = false;
+            appendFilterScriptOptions();
+            selectFilterScript(name);
+            showScriptNotice("脚本保存成功");
+        }).catch(_ => {
+            showScriptNotice("脚本保存失败");
+        });
+    });
+</script>
+<script>
+    const locationBase64 = "@Model.LocationBase64";
+    const pathBase64 = "@Model.PathBase64";
+
+    const savedScriptsPayload = @Html.Raw(Model.LocationVideoFilterScriptsJson);
+
+    function normalizeFilterScriptBody(script) {
+        const text = (script || "").trim();
+        if (!text) return "return true;";
+        if (/\breturn\b/.test(text)) return text;
+        return `return (${text.replace(/;+$/g, "").trim()});`;
+    }
+
+
+    const iconUrls = {
+        sequence: "/api/res/icon/btn-sequence.svg",
+        shuffle: "/api/res/icon/btn-shuffle.svg",
+        repeat: "/api/res/icon/btn-repeat.svg"
+    };
+
+    const storageKeys = {
+        lightMode: "lightMode",
+        legacyLightMode: "liteplay.lightMode",
+        playMode: "liteplay.playMode"
+    };
+
+    function readLocalStorageValue(key) {
+        try {
+            return window.localStorage.getItem(key);
+        } catch {
+            return null;
+        }
+    }
+
+    function writeLocalStorageValue(key, value) {
+        try {
+            window.localStorage.setItem(key, value);
+        } catch {
+        }
+    }
+
+    const useNativeMobilePlayer = document.documentElement.classList.contains("native-mobile-player");
+    if (useNativeMobilePlayer && elements.video) {
+        elements.video.controls = true;
+        elements.video.setAttribute("controls", "controls");
+    }
+
+    function syncLightToggleUi() {
+        if (!elements.lightToggleBtn) {
+            return;
+        }
+
+        const isLightOff = document.body.classList.contains("is-light-off");
+        elements.lightToggleBtn.dataset.light = isLightOff ? "off" : "on";
+        elements.lightToggleBtn.setAttribute("aria-pressed", isLightOff ? "true" : "false");
+        elements.lightToggleBtn.setAttribute("aria-label", isLightOff ? "开灯" : "关灯");
+    }
+
+    function toggleLightMask() {
+        document.body.classList.toggle("is-light-off");
+        const lightMode = document.body.classList.contains("is-light-off") ? "off" : "on";
+        writeLocalStorageValue(storageKeys.lightMode, lightMode);
+        syncLightToggleUi();
+    }
+
+    const playModeTips = {
+        sequence: "当前模式：顺序播放",
+        shuffle: "当前模式：随机播放",
+        repeat: "当前模式：循环播放"
+    };
+
+    const modeCycle = ["sequence", "shuffle", "repeat"];
+
+    let allVideos = [];
+    let playlist = [];
+    let currentIndex = -1;
+    let currentPlayMode = "@Model.InitialPlayMode".toLowerCase();
+
+    // ========================================
+    // 播放控制模块
+    // ========================================
+
+    function isRepeatMode() {
+        return currentPlayMode === "repeat";
+    }
+
+    function syncPlaybackModeUi() {
+        elements.video.loop = isRepeatMode();
+        elements.playModeBtn.title = playModeTips[currentPlayMode] || "播放模式切换";
+        elements.playModeBtn.setAttribute("aria-label", playModeTips[currentPlayMode] || "播放模式切换");
+        elements.playModeIcon.src = iconUrls[currentPlayMode] || iconUrls.sequence;
+        elements.playModeIcon.alt = playModeTips[currentPlayMode] || "播放模式";
+    }
+
+    function cyclePlayMode() {
+        const currentIndexInCycle = modeCycle.indexOf(currentPlayMode);
+        const nextIndex = (currentIndexInCycle + 1) % modeCycle.length;
+        const nextMode = modeCycle[nextIndex];
+        const previousMode = currentPlayMode;
+        currentPlayMode = nextMode;
+        writeLocalStorageValue(storageKeys.playMode, currentPlayMode);
+        syncPlaybackModeUi();
+
+        if (nextMode === "shuffle" && previousMode !== "shuffle") {
+            randomizePlaylist();
+            return;
+        }
+
+        if (nextMode === "sequence" && previousMode !== "sequence") {
+            restoreSequenceOrder();
+        }
+    }
+
+    function restoreLightModeFromStorage() {
+        const storedLightMode = (readLocalStorageValue(storageKeys.lightMode)
+            || readLocalStorageValue(storageKeys.legacyLightMode)
+            || "").toLowerCase();
+        if (storedLightMode === "off") {
+            document.body.classList.add("is-light-off");
+            return;
+        }
+
+        if (storedLightMode === "on") {
+            document.body.classList.remove("is-light-off");
+        }
+    }
+
+    function restorePlayModeFromStorage() {
+        const storedPlayMode = (readLocalStorageValue(storageKeys.playMode) || "").toLowerCase();
+        if (modeCycle.includes(storedPlayMode)) {
+            currentPlayMode = storedPlayMode;
+        }
+    }
+
+    function compareByOriginalOrder(left, right) {
+        const leftOrder = Number.isFinite(left.order) ? left.order : Number.MAX_SAFE_INTEGER;
+        const rightOrder = Number.isFinite(right.order) ? right.order : Number.MAX_SAFE_INTEGER;
+
+        if (leftOrder !== rightOrder) {
+            return leftOrder - rightOrder;
+        }
+
+        const leftPath = left.relativePath || left.name || "";
+        const rightPath = right.relativePath || right.name || "";
+        return leftPath.localeCompare(rightPath, "zh-CN", {numeric: true, sensitivity: "base"});
+    }
+
+    function restoreSequenceOrder() {
+        if (!playlist.length) {
+            return;
+        }
+
+        const currentItem = currentIndex >= 0 ? playlist[currentIndex] : null;
+        playlist.sort(compareByOriginalOrder);
+
+        if (currentItem) {
+            const restoredIndex = playlist.findIndex(item => item.url === currentItem.url);
+            currentIndex = restoredIndex >= 0 ? restoredIndex : 0;
+        }
+
+        renderPlayerState();
+    }
+
+    function randomizePlaylist() {
+        if (!playlist.length) {
+            return;
+        }
+
+        shuffleInPlace(playlist);
+        playAt(0, false);
+    }
+
+    function shuffleInPlace(items) {
+        for (let index = items.length - 1; index > 0; index -= 1) {
+            const swapIndex = Math.floor(Math.random() * (index + 1));
+            const current = items[index];
+            items[index] = items[swapIndex];
+            items[swapIndex] = current;
+        }
+    }
+
+    function stopPlayback() {
+        elements.video.pause();
+        elements.video.removeAttribute("src");
+        elements.video.load();
+    }
+
+    // ========================================
+    // 视频过滤和应用
+    // ========================================
+
+    function normalizeVideo(raw) {
+        return {
+            order: Number(raw.Order ?? raw.order ?? Number.MAX_SAFE_INTEGER),
+            name: raw.Name || raw.name || "",
+            relativePath: raw.RelativePath || raw.relativePath || "",
+            extension: (raw.Extension || raw.extension || "").toLowerCase(),
+            sizeBytes: Number(raw.SizeBytes || raw.sizeBytes || 0),
+            url: raw.Url || raw.url || "",
+            durationSeconds: raw.DurationSeconds != null
+                ? Number(raw.DurationSeconds)
+                : raw.durationSeconds == null
+                    ? null
+                    : Number(raw.durationSeconds)
+        };
+    }
+
+    function buildFilterFunction(script) {
+        return new Function("video", normalizeFilterScriptBody(script));
+    }
+
+    function applyScript() {
+        if (!allVideos.length) {
+            showEmptyState();
+            return;
+        }
+
+        let predicate;
+        try {
+            predicate = buildFilterFunction(elements.scriptInput.value);
+        } catch (error) {
+            console.error("脚本编译错误：", error);
+            return;
+        }
+
+        const filtered = [];
+        for (const video of allVideos) {
+            try {
+                if (predicate(video)) {
+                    filtered.push(video);
+                }
+            } catch (error) {
+                console.error("脚本运行错误：", error);
+                return;
+            }
+        }
+
+        playlist = filtered.slice();
+        if (currentPlayMode === "shuffle") {
+            shuffleInPlace(playlist);
+        }
+        playAt(0, false);
+    }
+
+    async function loadVideoSummaries() {
+        try {
+            const endpoint = pathBase64
+                ? `/api/ex/videoListApi/${locationBase64}/${pathBase64}`
+                : `/api/ex/videoListApi/${locationBase64}`;
+            const response = await fetch(endpoint, {method: "GET"});
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                return;
+            }
+
+            allVideos = Array.isArray(payload.videos) ? payload.videos.map(normalizeVideo) : [];
+            if (!allVideos.length) {
+                showEmptyState();
+                return;
+            }
+
+            applyScript();
+        } catch {
+        }
+    }
+
+    // ========================================
+    // UI 更新模块
+    // ========================================
+
+    function formatDuration(totalSeconds) {
+        if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) {
+            return "--:--";
+        }
+
+        const roundedSeconds = Math.round(totalSeconds);
+        const seconds = roundedSeconds % 60;
+        const totalMinutes = Math.floor(roundedSeconds / 60);
+        const minutes = totalMinutes % 60;
+        const hours = Math.floor(totalMinutes / 60);
+
+        if (hours > 0) {
+            return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+        }
+
+        return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    function formatBytes(totalBytes) {
+        if (!Number.isFinite(totalBytes) || totalBytes <= 0) {
+            return "--";
+        }
+
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        let size = totalBytes;
+        let unitIndex = 0;
+
+        while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex += 1;
+        }
+
+        const digits = size >= 100 || unitIndex === 0 ? 0 : size >= 10 ? 1 : 2;
+        return `${size.toFixed(digits)} ${units[unitIndex]}`;
+    }
+
+    function updateCounterText() {
+        const current = currentIndex >= 0 ? currentIndex + 1 : 0;
+        elements.counterText.textContent = `${current} / ${playlist.length}`;
+    }
+
+    function updateCurrentText() {
+        const item = playlist[currentIndex];
+        if (!item) {
+            elements.currentText.textContent = "未选择视频";
+            elements.currentPathText.textContent = "等待加载播放列表";
+            elements.currentExtText.textContent = "--";
+            elements.currentSizeText.textContent = "--";
+            return;
+        }
+
+        const name = item.name || item.relativePath.split(/[\\\/]/).pop() || "未命名视频";
+        const path = item.relativePath || name;
+        const extension = item.extension || (name.includes(".") ? name.slice(name.lastIndexOf(".")).toLowerCase() : "--");
+
+        elements.currentText.textContent = name;
+        elements.currentPathText.textContent = path;
+        elements.currentExtText.textContent = extension;
+        elements.currentSizeText.textContent = formatBytes(item.sizeBytes);
+    }
+
+    function updateDurationText() {
+        // Duration display removed; keeping function for compatibility
+    }
+
+    function syncPlayerFrameAspectRatio() {
+        if (!elements.playerFrame) {
+            return;
+        }
+
+        const videoWidth = elements.video.videoWidth;
+        const videoHeight = elements.video.videoHeight;
+        if (videoWidth > 0 && videoHeight > 0) {
+            elements.playerFrame.style.aspectRatio = `${videoWidth} / ${videoHeight}`;
+        }
+    }
+
+    function renderQueuePreview() {
+        const previousScrollTop = elements.queueList.scrollTop;
+        elements.queueList.textContent = "";
+
+        if (!playlist.length) {
+            return;
+        }
+
+        for (let index = 0; index < playlist.length; index += 1) {
+            const item = playlist[index];
+            const entry = document.createElement("li");
+            entry.className = `queue-item${index === currentIndex ? " queue-item--active" : ""}`;
+            entry.setAttribute("data-index", String(index));
+
+            const name = document.createElement("div");
+            name.className = "queue-name";
+            name.textContent = item.name || item.relativePath || "未命名视频";
+
+            const path = document.createElement("div");
+            path.className = "queue-path";
+            path.textContent = item.relativePath || "当前目录中的文件";
+
+            entry.append(name, path);
+            entry.addEventListener("click", () => playAt(index, true));
+            elements.queueList.append(entry);
+        }
+
+        elements.queueList.scrollTop = previousScrollTop;
+    }
+
+    function renderPlayerState() {
+        updateCounterText();
+        updateCurrentText();
+        updateDurationText();
+        renderQueuePreview();
+    }
+
+    function showEmptyState() {
+        currentIndex = -1;
+        stopPlayback();
+        renderPlayerState();
+    }
+
+    // ========================================
+    // 播放管理和事件监听
+    // ========================================
+
+    function playAt(index, shouldAutoPlay) {
+        if (!playlist.length) {
+            showEmptyState();
+            return;
+        }
+
+        if (index < 0) {
+            index = playlist.length - 1;
+        }
+        if (index >= playlist.length) {
+            index = 0;
+        }
+
+        const item = playlist[index];
+        if (!item || !item.url) {
+            return;
+        }
+
+        currentIndex = index;
+        elements.video.loop = isRepeatMode();
+        elements.video.src = item.url;
+        elements.video.load();
+        renderPlayerState();
+
+        if (shouldAutoPlay) {
+            elements.video.play().catch(() => {
+            });
+        }
+    }
+
+    elements.video.addEventListener("loadedmetadata", () => {
+        updateDurationText();
+        syncPlayerFrameAspectRatio();
+    });
+    elements.video.addEventListener("durationchange", () => {
+        updateDurationText();
+    });
+    elements.video.addEventListener("error", () => {
+    });
+    elements.video.addEventListener("ended", () => {
+        if (isRepeatMode()) {
+            return;
+        }
+
+        playAt(currentIndex + 1, true);
+    });
+
+    elements.playModeBtn.addEventListener("click", () => {
+        cyclePlayMode();
+    });
+
+    elements.prevBtn.addEventListener("click", () => playAt(currentIndex - 1, true));
+    elements.nextBtn.addEventListener("click", () => playAt(currentIndex + 1, true));
+
+    elements.applyScriptBtn.addEventListener("click", () => {
+        applyScript();
+    });
+    elements.lightToggleBtn?.addEventListener("click", toggleLightMask);
+
+    // 初始化
+    appendFilterScriptOptions();
+    restoreLightModeFromStorage();
+    restorePlayModeFromStorage();
+    syncLightToggleUi();
+    syncPlaybackModeUi();
+    renderPlayerState();
+    loadVideoSummaries();
+</script>
+
+<script>
+    async function loadBackgroundImage(windowWhRate) {
+        let imageType;
+        if (windowWhRate > 1) {
+            imageType = "horizontal";
+        } else {
+            imageType = "vertical";
+        }
+
+        const url = `/api/bg?imageType=${imageType}`;
+        const response = await fetch(url, {method: "GET"});
+        if (!response.ok) {
+            return null;
+        }
+
+        const blob = await response.blob();
+        return URL.createObjectURL(blob);
+    }
+
+    let windowWhRate = window.innerWidth / window.innerHeight;
+    let bgUrl = null;
+
+    async function setBackground() {
+        const previousRate = windowWhRate;
+        windowWhRate = window.innerWidth / window.innerHeight;
+
+        if (bgUrl === null || (previousRate > 1 && windowWhRate <= 1) || (previousRate <= 1 && windowWhRate > 1)) {
+            bgUrl = await loadBackgroundImage(windowWhRate);
+        }
+
+        const htmlElement = document.documentElement;
+        if (bgUrl === null) {
+            htmlElement.style.setProperty("--html-bg-image", "none");
+            htmlElement.style.setProperty("--front-bg-image", "none");
+            return;
+        }
+
+        const img = new Image();
+        img.src = bgUrl;
+        await img.decode();
+        const imgWhRate = img.width / img.height;
+
+        htmlElement.style.setProperty("--html-bg-image", `url("${bgUrl}")`);
+        htmlElement.style.setProperty("--html-bg-size", "cover");
+        if ((windowWhRate > imgWhRate && windowWhRate > 1.7) || (windowWhRate < imgWhRate && windowWhRate < 0.3)) {
+            htmlElement.style.setProperty("--html-bg-filter", "blur(4.8px) brightness(0.45)");
+            htmlElement.style.setProperty("--front-bg-image", `url("${bgUrl}")`);
+            htmlElement.style.setProperty("--front-bg-size", "contain");
+        } else {
+            htmlElement.style.setProperty("--html-bg-filter", "none");
+            htmlElement.style.setProperty("--front-bg-image", "none");
+            htmlElement.style.setProperty("--front-bg-size", "cover");
+        }
+    }
+
+    window.addEventListener("resize", setBackground);
+    setBackground();
+</script>
+</body>
+
+</html>

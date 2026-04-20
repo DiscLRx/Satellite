@@ -6,17 +6,19 @@ namespace Satellite.ViewModels.Converters;
 
 public class BackgroundBlurConverter : IValueConverter
 {
+    // Convert: PanelBlur (0–100) → Slider display value
+    // Round to 2 decimal places to ensure ConvertBack(Convert(x)) == x, preventing slider jitter.
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        var y = value as double? ?? 1;
-        var x = Math.Pow(y / 0.004, 1 / 2.2);
-        return System.Convert.ToInt32(x);
+        var panelBlur = value as double? ?? 0;
+        return Math.Round(panelBlur, 2, MidpointRounding.AwayFromZero);
     }
 
+    // ConvertBack: Slider value → PanelBlur (0–100)
+    // Round to 2 decimal places to eliminate floating-point drift in the two-way binding loop.
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        var x = value as double? ?? 1;
-        var y = Math.Pow(x, 2.2) * 0.004;
-        return y;
+        var sliderValue = value as double? ?? 0;
+        return Math.Round(sliderValue, 2, MidpointRounding.AwayFromZero);
     }
 }

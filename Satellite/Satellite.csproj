@@ -42,6 +42,7 @@
         <PackageReference Include="OpenCvSharp4.Windows" Version="4.11.0.20250507" />
         <PackageReference Include="ReactiveUI.Avalonia" Version="11.3.8" />
         <PackageReference Include="Semi.Avalonia" Version="11.3.7.3" />
+        <PackageReference Include="Tmds.DBus.Protocol" Version="0.92.0" />
         <PackageReference Include="Xaml.Behaviors.Avalonia" Version="11.3.9.5" />
         <PackageReference Include="Xaml.Behaviors.Interactions" Version="11.3.9.5" />
     </ItemGroup>

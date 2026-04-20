@@ -12,33 +12,16 @@ public class FileAccessApiController(RuntimeData runtimeData) : ControllerBase
 {
     private readonly RuntimeData _runtimeData = runtimeData;
 
-    [HttpPost("upload/{locationBase64}/{pathBase64?}")]
-    public async Task<IActionResult> UploadFiles(string locationBase64, string pathBase64 = "")
+    [HttpPost("upload/{locationNameBase64}/{relativePathBase64?}")]
+    public async Task<IActionResult> UploadFiles(string locationNameBase64, string relativePathBase64 = "")
     {
-        string locationName;
-        string path;
-        try
-        {
-            locationName = Base64.FromBase64UrlToString(locationBase64);
-            path = Base64.FromBase64UrlToString(pathBase64).TrimSlash();
-        }
-        catch (FormatException)
-        {
-            return BadRequest();
-        }
-
-        var location = _runtimeData.Instance.Locations.SingleOrDefault(loc => loc.Name == locationName);
-        if (location is null)
-        {
-            return BadRequest();
-        }
-
-        var locationRoot = Path.GetFullPath(location.Path.TrimSlash());
-        var targetDirectory = Path.GetFullPath(Path.Combine(locationRoot, path));
-
         if (
-            !targetDirectory.StartsWith(locationRoot, StringComparison.OrdinalIgnoreCase)
-            || !Directory.Exists(targetDirectory)
+            !LocationPathResolver.TryResolve(
+                _runtimeData.Instance.Locations,
+                locationNameBase64,
+                relativePathBase64,
+                out var resolved
+            )
         )
         {
             return BadRequest();
@@ -70,8 +53,7 @@ public class FileAccessApiController(RuntimeData runtimeData) : ControllerBase
                 continue;
             }
 
-            var targetFilePath = Path.GetFullPath(Path.Combine(targetDirectory, fileName));
-            if (!targetFilePath.StartsWith(locationRoot, StringComparison.OrdinalIgnoreCase))
+            if (!PathExtension.SafeCombine(resolved!.FullPath, fileName, out var targetFilePath))
             {
                 continue;
             }
@@ -91,11 +73,11 @@ public class FileAccessApiController(RuntimeData runtimeData) : ControllerBase
         return Ok(new { uploaded, total = files.Count });
     }
 
-    [HttpGet("{locationBase64}/{pathBase64}")]
-    public async Task GetFileRange(string locationBase64, string pathBase64)
+    [HttpGet("{locationNameBase64}/{relativePathBase64}")]
+    public async Task GetFileRange(string locationNameBase64, string relativePathBase64)
     {
-        var locationName = Base64.FromBase64UrlToString(locationBase64);
-        var path = Base64.FromBase64UrlToString(pathBase64).TrimSlash();
+        var locationName = Base64.FromBase64UrlToString(locationNameBase64);
+        var relativePath = Base64.FromBase64UrlToString(relativePathBase64).TrimSlash();
 
         var locations = _runtimeData.Instance.Locations;
         var location = locations.SingleOrDefault(loc => loc.Name == locationName);
@@ -106,26 +88,24 @@ public class FileAccessApiController(RuntimeData runtimeData) : ControllerBase
         }
 
         var locationRoot = location.Path.TrimSlash();
-        var localFilePath = Path.Combine(locationRoot, path);
 
         // Important, for security
-        if (!localFilePath.StartsWith(locationRoot) || !SysFile.Exists(localFilePath))
+        if (!PathExtension.SafeCombine(locationRoot, relativePath, out var fileFullPath) || !SysFile.Exists(fileFullPath))
         {
             HttpContext.Response.StatusCode = 400;
             return;
         }
 
-        await using var fs = SysFile.OpenRead(localFilePath);
+        await using var fs = SysFile.OpenRead(fileFullPath);
         ParseRangeHeader(in fs, out long begin, out long end, out int statusCode);
         var response = HttpContext.Response;
         response.StatusCode = statusCode;
         response.Headers.AcceptRanges = "bytes";
-        response.ContentType = MimeMapper.GetMimeType(localFilePath);
+        response.ContentType = MimeMapper.GetMimeType(fileFullPath);
         response.ContentLength = end - begin + 1;
         response.Headers.ContentRange = $"bytes {begin}-{end}/{fs.Length}";
 
         await WriteRangeToResponse(fs, begin, end);
-
     }
 
     private void ParseRangeHeader(in FileStream stream, out long begin, out long end, out int statusCode)
@@ -133,6 +113,7 @@ public class FileAccessApiController(RuntimeData runtimeData) : ControllerBase
         var range = HttpContext.Request.Headers.Range;
         if (range.Count == 0)
         {
+            
             statusCode = 200;
             begin = 0;
             end = stream.Length - 1;

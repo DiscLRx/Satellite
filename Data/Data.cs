@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using System.Collections.Concurrent;
+using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
 using DynamicData;
 using ReactiveUI;
@@ -68,6 +69,12 @@ public class Instance : ReactiveObject
         get;
         set => this.RaiseAndSetIfChanged(ref field, value);
     } = false;
+
+    public ConcurrentDictionary<string, string>? VideoFilterScript
+    {
+        get;
+        set => this.RaiseAndSetIfChanged(ref field, value);
+    }
 
     [JsonIgnore]
     public InstanceCustom? InstanceCustom

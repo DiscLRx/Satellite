@@ -1,4 +1,14 @@
-﻿using Avalonia.Controls;
+﻿using System;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -7,18 +17,9 @@ using Data;
 using Microsoft.Win32;
 using ReactiveUI;
 using Satellite.Service;
+using Satellite.Tools;
 using Satellite.Views;
-using System;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using Location = Data.Location;
-
 
 namespace Satellite.ViewModels;
 
@@ -28,6 +29,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private const string StartupRegistryValueName = "Satellite";
 
     private readonly MainWindow _mainWindow;
+    private bool _isInstanceOperationInProgress;
 
     public MainWindowViewModel(MainWindow mainWindow)
     {
@@ -40,7 +42,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
         _mainWindow.Loaded += (_, _) =>
         {
-            _mainWindow.AddInstanceButton.Flyout!.Closed += (_, _) => NewInstancePortText = string.Empty;
+            _mainWindow.AddInstanceButton.Flyout!.Closed += (_, _) =>
+                NewInstancePortText = string.Empty;
         };
     }
 
@@ -86,11 +89,13 @@ public partial class MainWindowViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref field, value);
     } = string.Empty;
 
-
     [RelayCommand]
     public void MinimizeWindow()
     {
-        Dispatcher.UIThread.Post(() => { _mainWindow.WindowState = WindowState.Minimized; });
+        Dispatcher.UIThread.Post(() =>
+        {
+            _mainWindow.WindowState = WindowState.Minimized;
+        });
     }
 
     [RelayCommand]
@@ -105,7 +110,6 @@ public partial class MainWindowViewModel : ViewModelBase
         Dispatcher.UIThread.Post(_mainWindow.LoadBackground);
     }
 
-
     [RelayCommand]
     public void ChangeCurrentInstance(int port)
     {
@@ -115,11 +119,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     public void OpenDirectory(string path)
     {
-        var proc = new ProcessStartInfo
-        {
-            FileName = path,
-            UseShellExecute = true
-        };
+        var proc = new ProcessStartInfo { FileName = path, UseShellExecute = true };
         try
         {
             Process.Start(proc);
@@ -133,12 +133,19 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     public void OpenAppDataFile()
     {
-        var filePath = Path.GetFullPath("appdata.json");
-        Console.WriteLine(filePath);
-                var proc = new ProcessStartInfo
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            FileName = filePath,
-            UseShellExecute = true
+            SendNotification("Opening appdata.json is only supported on Windows.");
+            return;
+        }
+
+        var filePath = Path.GetFullPath("appdata.json");
+        var proc = new ProcessStartInfo
+        {
+            FileName = "cmd.exe",
+            Arguments = $"/c start \"\" \"{filePath}\"",
+            UseShellExecute = false,
+            CreateNoWindow = true,
         };
         try
         {
@@ -206,7 +213,13 @@ public partial class MainWindowViewModel : ViewModelBase
             throw new InvalidOperationException("Cannot resolve process path.");
         }
 
-        if (string.Equals(Path.GetExtension(processPath), ".dll", StringComparison.OrdinalIgnoreCase))
+        if (
+            string.Equals(
+                Path.GetExtension(processPath),
+                ".dll",
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
         {
             return $"\"dotnet\" \"{processPath}\"";
         }
@@ -271,46 +284,49 @@ public partial class MainWindowViewModel : ViewModelBase
     [GeneratedRegex(@"^[a-zA-Z0-9]+$")]
     private static partial Regex PasswordRegex();
 
-    [GeneratedRegex(@"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")]
-    private static partial Regex IpAddressRegex();
-
     [RelayCommand]
     public void InitWhiteListText()
     {
         WhiteListText = CurrentInstance is null
             ? string.Empty
-            : string.Join(Environment.NewLine, CurrentInstance.WhiteList);
+            : string.Join(';' + Environment.NewLine, CurrentInstance.WhiteList);
     }
 
     [RelayCommand]
     public void SaveWhiteList(Button btn)
     {
-        if (CurrentInstance is null) return;
+        if (CurrentInstance is null)
+            return;
 
-        var lines = WhiteListText
-            .Split(['\n', '\r'], StringSplitOptions.RemoveEmptyEntries)
-            .Select(l => l.Trim())
-            .Where(l => !string.IsNullOrEmpty(l))
+        var ipTexts = WhiteListText.Replace("\r", "").Replace("\n", "")
+            .Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Select(ipText => ipText.Trim())
+            .Where(ipText => !string.IsNullOrEmpty(ipText))
             .ToList();
 
-        var duplicates = lines.GroupBy(l => l).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        var duplicates = ipTexts
+            .GroupBy(ipText => ipText)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
         if (duplicates.Count > 0)
         {
             SendNotification($"Duplicate IPs: {string.Join(", ", duplicates)}");
             return;
         }
-
-        var invalidIps = lines.Where(l => !IpAddressRegex().IsMatch(l)).ToList();
+        
+        var invalidIps = ipTexts.Where(ipText => !IPAddress.TryParse(ipText, out _)).ToList();
         if (invalidIps.Count > 0)
         {
             SendNotification($"Invalid IPs: {string.Join(", ", invalidIps)}");
             return;
         }
 
-        CurrentInstance.WhiteList = new ObservableCollection<string>(lines);
+        CurrentInstance.WhiteList = new ObservableCollection<string>(ipTexts);
         ServiceController.SaveChange();
         btn.Flyout!.Hide();
     }
+
     [RelayCommand]
     public void ChangeLocked()
     {
@@ -331,7 +347,6 @@ public partial class MainWindowViewModel : ViewModelBase
         ServiceController.SaveChange();
     }
 
-
     [RelayCommand]
     public void ChangePanelBlur()
     {
@@ -340,42 +355,57 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    public async Task StartOrStopInstance()
+    public void StartOrStopInstance()
     {
         if (CurrentInstance is null)
         {
             return;
         }
 
-        try
+        if (_isInstanceOperationInProgress)
         {
-            if (CurrentInstance.IsRunning)
-            {
-                await ServiceController.StopInstanceAsync(CurrentInstance);
-            }
-            else
-            {
-                await ServiceController.StartInstanceAsync(CurrentInstance);
-            }
-        }
-        catch (Exception e)
-        {
-            SendNotification(e.Message);
+            SendNotification("Instance operation is already in progress.");
+            return;
         }
 
+        var target = CurrentInstance;
+        _isInstanceOperationInProgress = true;
 
+        void OnCompleted(OperationResult result)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                _isInstanceOperationInProgress = false;
+                this.RaisePropertyChanged(nameof(CurrentInstance));
+                if (!result.Success)
+                {
+                    SendNotification(result.Message);
+                }
+            });
+        }
+
+        Action<Instance, Action<OperationResult>?> instanceOperation = target.IsRunning
+            ? ServiceController.StopInstance
+            : ServiceController.StartInstance;
+        instanceOperation(target, OnCompleted);
     }
 
     [RelayCommand]
     public void SelectLocation()
     {
-        var folder = _mainWindow.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-        {
-            AllowMultiple = false,
-            SuggestedStartLocation =
-                _mainWindow.StorageProvider.TryGetWellKnownFolderAsync(WellKnownFolder.Desktop).Result
-        }).Result.FirstOrDefault();
-        if (folder is null) return;
+        var folder = _mainWindow
+            .StorageProvider.OpenFolderPickerAsync(
+                new FolderPickerOpenOptions
+                {
+                    AllowMultiple = false,
+                    SuggestedStartLocation = _mainWindow
+                        .StorageProvider.TryGetWellKnownFolderAsync(WellKnownFolder.Desktop)
+                        .Result,
+                }
+            )
+            .Result.FirstOrDefault();
+        if (folder is null)
+            return;
 
         NewLocationPath = folder.Path.LocalPath;
     }
@@ -383,8 +413,10 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     public void AddLocation()
     {
-        var result =
-            ServiceController.AddLocation(CurrentInstance!.Port, new Location(NewLocationName, NewLocationPath));
+        var result = ServiceController.AddLocation(
+            CurrentInstance!.Port,
+            new Location(NewLocationName, NewLocationPath)
+        );
         if (result.Success)
         {
             NewLocationName = string.Empty;
@@ -414,20 +446,18 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)]
-    internal static partial int MessageBoxW(IntPtr hWnd, string text, string caption, uint type);
-
     private void SendNotification(string text)
     {
-        var notificationManager = _mainWindow.NotificationManager;
-        if (notificationManager is null)
+        if (WindowsNotificationTool.TryShow("Satellite", text))
         {
-            MessageBoxW(0, text, "Satellite", 0x00000000);
             return;
         }
 
-        notificationManager.Show(text, NotificationType.Information);
+        var notificationManager = _mainWindow.NotificationManager;
+        if (notificationManager is not null)
+        {
+            notificationManager.Show(text, NotificationType.Information);
+            return;
+        }
     }
-
-
 }

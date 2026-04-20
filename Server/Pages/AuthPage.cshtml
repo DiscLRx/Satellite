@@ -12,175 +12,123 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Login Page</title>
+    @await Html.PartialAsync("/Pages/Shared/_SatelliteTheme.cshtml")
     <style>
-            html,
-            body {
-                margin: 0;
-                padding: 0;
-                width: 100%;
-                height: 100%;
-                min-height: 100%;
-                min-height: 100vh;
-                color: #f7f7f7;
-                overflow: hidden;
-                overscroll-behavior-y: none;
-                touch-action: manipulation;
-            }
+        body {
+            display: grid;
+            place-items: center;
+            min-height: 100dvh;
+            overflow: hidden;
+            overscroll-behavior-y: none;
+            touch-action: manipulation;
+            padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+        }
 
-            html {
-                background: #000000;
-            }
+        .login-shell {
+            width: min(100%, 460px);
+            position: relative;
+        }
 
-            html::before {
-                content: "";
-                position: fixed;
-                inset: 0;
-                z-index: -2;
-                pointer-events: none;
-            }
+        .login-panel {
+            padding: 22px;
+            display: grid;
+            gap: 14px;
+        }
 
-            html::after {
-                content: "";
-                position: fixed;
-                inset: 0;
-                background: radial-gradient(circle at top, rgba(64, 104, 161, 0.2), transparent 42%),
-                    linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.5));
-                z-index: -1;
-                pointer-events: none;
-            }
+        .login-header {
+            display: grid;
+            gap: 10px;
+        }
 
-            body {
-                background: transparent;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                -webkit-text-size-adjust: 100%;
-                padding: max(20px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
-                box-sizing: border-box;
-                display: grid;
-                place-items: center;
-                overflow: hidden;
-            }
+        .login-kicker {
+            color: var(--accent);
+            font-size: 0.78rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
 
-            .login-shell {
-                width: min(100%, 420px);
-                position: relative;
-            }
+        .login-title {
+            margin: 0;
+            font-family: "Bahnschrift", "IBM Plex Sans", sans-serif;
+            font-size: clamp(1.36rem, 2vw, 1.8rem);
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
 
+        .login-subtitle {
+            margin: 0;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .password-input {
+            height: 52px;
+            font-size: 1rem;
+        }
+
+        .password-input::placeholder {
+            color: rgba(157, 177, 190, 0.84);
+        }
+
+        .confirm-button {
+            width: 100%;
+            min-height: 50px;
+            font-size: 0.98rem;
+            font-weight: 600;
+        }
+
+        .toast {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: calc(100% + 0.75rem);
+            transform: translateY(12px);
+            box-sizing: border-box;
+            padding: 12px 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 141, 141, 0.224);
+            background: rgba(71, 25, 25, 0.616);
+            color: #ffe5e5;
+            backdrop-filter: blur(6.4px);
+            -webkit-backdrop-filter: blur(6.4px);
+            box-shadow: var(--shadow);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0.2s;
+            z-index: 20;
+        }
+
+        .toast.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s;
+        }
+
+        @@media (max-width: 760px) {
             .login-panel {
-                background: rgba(26, 26, 28, 0.7);
-                border: 1px solid rgba(255, 255, 255, 0.14);
-                border-radius: 16px;
-                backdrop-filter: blur(18px);
-                -webkit-backdrop-filter: blur(18px);
-                box-shadow: 0 18px 42px rgba(0, 0, 0, 0.38);
                 padding: 18px;
-                position: relative;
-                display: grid;
-                gap: 12px;
             }
 
-            .password-input {
-                width: 100%;
-                height: 52px;
-                box-sizing: border-box;
-                border: 1px solid rgba(255, 255, 255, 0.16);
-                border-radius: 12px;
-                background: rgba(48, 48, 48, 0.6);
-                color: #f3f3f3;
-                font-size: 1rem;
-                padding: 0 14px;
-                outline: none;
-                transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-            }
-
-            .password-input::placeholder {
-                color: rgba(214, 214, 219, 0.62);
-            }
-
-            .password-input:hover {
-                border-color: rgba(160, 200, 255, 0.5);
-                background: rgba(56, 56, 56, 0.68);
-            }
-
-            .password-input:focus {
-                border-color: rgba(116, 176, 255, 0.95);
-                box-shadow: 0 0 0 3px rgba(88, 152, 235, 0.26);
-                background: rgba(60, 60, 60, 0.76);
-            }
-
+            .password-input,
             .confirm-button {
-                width: 100%;
-                height: 50px;
-                border: 1px solid rgba(98, 162, 252, 0.85);
-                border-radius: 12px;
-                background: rgba(66, 128, 214, 0.8);
-                color: #f3f3f3;
-                font-size: 0.98rem;
-                font-weight: 600;
-                cursor: pointer;
-                transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+                font-size: 16px;
             }
-
-            .confirm-button:hover,
-            .confirm-button:focus-visible {
-                background: rgba(80, 145, 235, 0.92);
-                box-shadow: 0 10px 24px rgba(33, 93, 173, 0.28);
-                outline: none;
-            }
-
-            .confirm-button:active {
-                transform: scale(0.99);
-            }
-
-            .toast {
-                position: absolute;
-                left: 0;
-                right: 0;
-                bottom: calc(100% + 0.5rem);
-                transform: translateY(12px);
-                box-sizing: border-box;
-                padding: 12px 14px;
-                border-radius: 12px;
-                border: 1px solid rgba(255, 126, 126, 0.28);
-                background: rgba(71, 25, 25, 0.76);
-                color: #ffe5e5;
-            
-                backdrop-filter: blur(16px);
-                -webkit-backdrop-filter: blur(16px);
-                box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
-                opacity: 0;
-                visibility: hidden;
-                pointer-events: none;
-                transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0.2s;
-                z-index: 20;
-            }
-
-            .toast.show {
-                opacity: 1;
-                visibility: visible;
-                transform: translateY(0);
-                transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s;
-            }
-
-            @@media (max-width: 760px) {
-                .login-panel {
-                    border-radius: 16px;
-                    padding: 16px;
-                }
-
-                .password-input,
-                .confirm-button {
-                    font-size: 16px;
-                }
-            }
+        }
     </style>
 </head>
 
 <body>
     <main class="login-shell">
         <div id="errorToast" class="toast" role="status" aria-live="polite"></div>
-        <section class="login-panel">
-            <input id="keyInput" class="password-input" type="password" placeholder="Key" />
-            <button class="confirm-button" type="button" id="ok">Ok</button>
+        <section class="login-panel theme-card theme-card--strong">
+            <header class="login-header">
+                <div class="login-kicker">Satellite</div>
+                <h1 class="login-title">身份验证</h1>
+            </header>
+            <input id="keyInput" class="password-input theme-field" type="password" placeholder="Key" />
+            <button class="confirm-button theme-button theme-button--accent" type="button" id="ok">Ok</button>
         </section>
     </main>
 

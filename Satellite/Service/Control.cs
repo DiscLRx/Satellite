@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -25,7 +26,10 @@ public class ServiceController
     private string InstancesCustomRoot = "Custom/Instances";
     public AppData AppData { get; set; }
 
-    public Dictionary<int, WebServer> RunningInstances = [];
+    private static readonly OperationResult SuccessResult = new(true, string.Empty);
+
+    public ConcurrentDictionary<int, WebServer> RunningInstances { get; } = new();
+    private readonly ConcurrentDictionary<int, SemaphoreSlim> _instanceLocks = new();
 
     public ServiceController()
     {
@@ -37,9 +41,35 @@ public class ServiceController
             CreateInstanceCustomPathIfNotExist(instance);
             if (instance.IsRunning)
             {
-                Task.Run(() => StartInstanceAsync(instance));
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await StartInstanceAsync(instance);
+                    }
+                    catch
+                    {
+                        // Keep startup robust on app boot. Per-instance failure should not crash startup.
+                    }
+                });
             }
         }
+    }
+
+    private SemaphoreSlim GetInstanceLock(int port)
+    {
+        return _instanceLocks.GetOrAdd(port, _ => new SemaphoreSlim(1, 1));
+    }
+
+    private void SetInstanceRunningState(Instance instance, bool isRunning)
+    {
+        if (instance.IsRunning == isRunning)
+        {
+            return;
+        }
+
+        instance.IsRunning = isRunning;
+        SaveChange();
     }
 
     private void CreateInstanceCustomPathIfNotExist(Instance instance)
@@ -48,7 +78,10 @@ public class ServiceController
         var backgroundCustomPathVertical = $"{InstancesCustomRoot}/{instance.Port}/Background/Vertical";
         CreateDirectoryIfNotExist(backgroundCustomPathHorizontal);
         CreateDirectoryIfNotExist(backgroundCustomPathVertical);
-        instance.InstanceCustom = new InstanceCustom(backgroundCustomPathHorizontal, backgroundCustomPathVertical);
+        instance.InstanceCustom = new InstanceCustom(
+            backgroundCustomPathHorizontal,
+            backgroundCustomPathVertical
+        );
     }
 
     private void CreateDirectoryIfNotExist(string directory)
@@ -68,9 +101,9 @@ public class ServiceController
             EnsureDataFileExists();
             var dataText = File.ReadAllText(DataFilePath);
             return JsonSerializer.Deserialize<AppData>(
-                    dataText,
-                    SourceGenerationContext.Default.AppData
-                ) ?? throw new NullReferenceException();
+                dataText,
+                SourceGenerationContext.Default.AppData
+            ) ?? throw new NullReferenceException();
         }
     }
 
@@ -85,7 +118,9 @@ public class ServiceController
             .GetManifestResourceStream(DataTemplateResourceName);
         if (templateStream is null)
         {
-            throw new FileNotFoundException($"Embedded resource '{DataTemplateResourceName}' was not found.");
+            throw new FileNotFoundException(
+                $"Embedded resource '{DataTemplateResourceName}' was not found."
+            );
         }
 
         using var reader = new StreamReader(templateStream);
@@ -150,22 +185,106 @@ public class ServiceController
 
     public async Task StartInstanceAsync(Instance instance)
     {
-        var server = new WebServer(instance);
-        RunningInstances[instance.Port] = server;
-        await server.StartAsync();
-        instance.IsRunning = true;
-        SaveChange();
+        var instanceLock = GetInstanceLock(instance.Port);
+        await instanceLock.WaitAsync();
+        try
+        {
+            if (RunningInstances.TryGetValue(instance.Port, out _))
+            {
+                SetInstanceRunningState(instance, true);
+                return;
+            }
+
+            var server = new WebServer(instance, SaveChange);
+            RunningInstances[instance.Port] = server;
+
+            try
+            {
+                await server.StartAsync();
+                SetInstanceRunningState(instance, true);
+            }
+            catch (Exception ex)
+            {
+                RunningInstances.TryRemove(instance.Port, out _);
+                await SafeStopAsync(server);
+                SetInstanceRunningState(instance, false);
+                throw new InvalidOperationException(
+                    $"Failed to start instance on port {instance.Port}.",
+                    ex
+                );
+            }
+        }
+        finally
+        {
+            instanceLock.Release();
+        }
+    }
+
+    public void StartInstance(Instance instance, Action<OperationResult>? onCompleted = null)
+    {
+        RunInstanceOperation(() => StartInstanceAsync(instance), onCompleted);
     }
 
     public async Task StopInstanceAsync(Instance instance)
     {
-        RunningInstances.TryGetValue(instance.Port, out var server);
-        if (server is null)
+        var instanceLock = GetInstanceLock(instance.Port);
+        await instanceLock.WaitAsync();
+        try
         {
-            return;
+            if (!RunningInstances.TryRemove(instance.Port, out var server) || server is null)
+            {
+                SetInstanceRunningState(instance, false);
+                return;
+            }
+
+            try
+            {
+                await server.StopAsync();
+            }
+            finally
+            {
+                SetInstanceRunningState(instance, false);
+            }
         }
-        await server.StopAsync();
-        instance.IsRunning = false;
-        SaveChange();
+        finally
+        {
+            instanceLock.Release();
+        }
+    }
+
+    public void StopInstance(Instance instance, Action<OperationResult>? onCompleted = null)
+    {
+        RunInstanceOperation(() => StopInstanceAsync(instance), onCompleted);
+    }
+
+    private void RunInstanceOperation(
+        Func<Task> operation,
+        Action<OperationResult>? onCompleted = null
+    )
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await operation();
+                onCompleted?.Invoke(SuccessResult);
+            }
+            catch (Exception ex)
+            {
+                onCompleted?.Invoke(new OperationResult(false, ex.Message));
+            }
+        });
+    }
+
+    private static async Task SafeStopAsync(WebServer server)
+    {
+        try
+        {
+            await server.StopAsync();
+        }
+        catch
+        {
+            // Ignore cleanup errors while recovering from failed startup.
+        }
     }
 }

@@ -366,3 +366,8 @@ FodyWeavers.xsd
 
 appdata.json
 /Satellite/Custom/
+
+# Ignore bundled lib assets but keep dependency manifest doc
+/Server/resources/lib/**
+!/Server/resources/lib/
+!/Server/resources/lib/libraries.md
