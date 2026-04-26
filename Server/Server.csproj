@@ -1,37 +1,38 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-    <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
-        <OutputType>Library</OutputType>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    </PropertyGroup>
-  	<PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-  		<DebugSymbols>false</DebugSymbols>
-  		<DebugType>none</DebugType>
-  	</PropertyGroup>
-	
-    <ItemGroup>
-      <ProjectReference Include="..\Data\Data.csproj" />
-    </ItemGroup>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
 
-    <ItemGroup>
-      <Content Update="Pages\**" CopyToPublishDirectory="Never" />
-    </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugSymbols>false</DebugSymbols>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
 
-    <ItemGroup>
-      <EmbeddedResource Include="resources\**\*" />
-      <Content Remove="resources\**\*" />
-      <None Remove="resources\**\*" />
-    </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Data\Data.csproj" />
+  </ItemGroup>
 
-    <ItemGroup>
-      <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.2" PrivateAssets="All" />
-      <PackageReference Include="taglibsharp" Version="2.3.0" />
-      <!-- Security: Explicitly pin vulnerable transitive dependencies to patched versions (NU1901) -->
-      <PackageReference Include="NuGet.Packaging" Version="7.3.1" />
-      <PackageReference Include="NuGet.Protocol" Version="7.3.1" />
-    </ItemGroup>
+  <ItemGroup>
+    <Content Update="Pages\**" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="resources\**\*" />
+    <Content Remove="resources\**\*" />
+    <None Remove="resources\**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.2" PrivateAssets="All" />
+    <PackageReference Include="taglibsharp" Version="2.3.0" />
+    <!-- Security: Explicitly pin vulnerable transitive dependencies to patched versions (NU1901) -->
+    <PackageReference Include="NuGet.Packaging" Version="7.3.1" />
+    <PackageReference Include="NuGet.Protocol" Version="7.3.1" />
+  </ItemGroup>
 
 </Project>

@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 
 namespace Server.Tools;
 
@@ -8,7 +8,6 @@ public partial class DirectoryTool
     {
         try
         {
-            // 1. 处理当前目录的文件（同目录下按 PathCompare 排序）
             var files = Directory.GetFiles(path);
             Array.Sort(
                 files,
@@ -24,8 +23,6 @@ public partial class DirectoryTool
             {
                 action(fileInfo);
             }
-
-            // 2. 递归子目录（目录名按 PathCompare 排序）
             var directories = Directory.GetDirectories(path);
             Array.Sort(
                 directories,
@@ -38,16 +35,14 @@ public partial class DirectoryTool
 
             foreach (var dir in directories)
             {
-                RecursiveTraversal(dir, action); // 自身递归调用
+                RecursiveTraversal(dir, action); 
             }
         }
         catch (UnauthorizedAccessException)
         {
-            // Console.WriteLine($"无权限访问: {path}");
         }
         catch (DirectoryNotFoundException)
         {
-            // Console.WriteLine($"未找到目录: {path}");
         }
     }
 
@@ -75,9 +70,6 @@ public partial class DirectoryTool
     {
         if (x == y)
             return 0;
-
-        // 使用正则表达式将字符串分割为数字和非数字序列
-        // \d+ 匹配连续数字
         var xParts = IntegerRegex().Split(x).Where(p => !string.IsNullOrEmpty(p)).ToArray();
         var yParts = IntegerRegex().Split(y).Where(p => !string.IsNullOrEmpty(p)).ToArray();
 
@@ -87,15 +79,11 @@ public partial class DirectoryTool
         {
             if (xParts[i] == yParts[i])
                 continue;
-
-            // 检查当前片段是否为数字
             var isXDigit = char.IsDigit(xParts[i][0]);
             var isYDigit = char.IsDigit(yParts[i][0]);
 
             if (isXDigit && isYDigit)
             {
-                // 1. 核心逻辑：按数值比较
-                // 使用 BigInteger 或字符串去前导零比较，防止长数字溢出
                 var xNormalized = xParts[i].TrimStart('0');
                 var yNormalized = yParts[i].TrimStart('0');
 
@@ -106,11 +94,8 @@ public partial class DirectoryTool
                 return partRes != 0
                     ? partRes
                     :
-                    // 2. 核心逻辑：数值相同时，前导零较少的（字符串长度较短的）排前面
                     xParts[i].Length.CompareTo(yParts[i].Length);
             }
-
-            // 3. 非数字部分：使用不区分大小写的比较（模拟 StrCmpLogicalW 行为）
             var result = string.Compare(
                 xParts[i],
                 yParts[i],

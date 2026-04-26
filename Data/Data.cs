@@ -1,21 +1,21 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
-using DynamicData;
-using ReactiveUI;
 
 namespace Data;
 
 public class InstanceCustom(
     string backgroundCustomPathHorizontal,
     string backgroundCustomPathVertical
-) : ReactiveObject
+) : ObservableObject
 {
     public string BackgroundCustomPathHorizontal { get; set; } = backgroundCustomPathHorizontal;
     public string BackgroundCustomPathVertical { get; set; } = backgroundCustomPathVertical;
 }
 
-public class Instance : ReactiveObject
+public class Instance : ObservableObject
 {
     public Instance() { }
 
@@ -28,7 +28,7 @@ public class Instance : ReactiveObject
     )
     {
         Port = port;
-        Locations.AddRange(locations ?? []);
+        foreach (var loc in locations ?? []) Locations.Add(loc);
         IsLocked = isLocked;
         IsRunning = isRunning;
         InstanceCustom = instanceCustom;
@@ -37,54 +37,54 @@ public class Instance : ReactiveObject
     public int Port
     {
         get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
+        set => SetProperty(ref field, value);
     }
 
     public ObservableCollection<Location> Locations
     {
         get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
+        set => SetProperty(ref field, value);
     } = [];
 
     public bool IsLocked
     {
         get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
+        set => SetProperty(ref field, value);
     } = false;
 
     public string Password
     {
         get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
+        set => SetProperty(ref field, value);
     } = string.Empty;
 
     public ObservableCollection<string> WhiteList
     {
         get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
+        set => SetProperty(ref field, value);
     } = [];
 
     public bool IsRunning
     {
         get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
+        set => SetProperty(ref field, value);
     } = false;
 
     public ConcurrentDictionary<string, string>? VideoFilterScript
     {
         get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
+        set => SetProperty(ref field, value);
     }
 
     [JsonIgnore]
     public InstanceCustom? InstanceCustom
     {
         get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
+        set => SetProperty(ref field, value);
     }
 }
 
-public class Location : ReactiveObject
+public class Location : ObservableObject
 {
     public Location() { }
 
@@ -97,45 +97,25 @@ public class Location : ReactiveObject
     public string Name
     {
         get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
+        set => SetProperty(ref field, value);
     } = string.Empty;
 
     public string Path
     {
         get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
+        set => SetProperty(ref field, value);
     } = string.Empty;
 }
 
-public class AppData : ReactiveObject
+public abstract class ObservableObject : INotifyPropertyChanged
 {
-    public ObservableCollection<Instance> Instances
-    {
-        get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
-    } = [];
+    public event PropertyChangedEventHandler? PropertyChanged;
 
-    public bool IsAutoStart
+    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
-        get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
-    } = false;
-
-    public double PanelOpacity
-    {
-        get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
-    } = 0;
-
-    public double PanelBlur
-    {
-        get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
-    } = 0;
-
-    public bool MinimizeToTray
-    {
-        get;
-        set => this.RaiseAndSetIfChanged(ref field, value);
-    } = false;
+        if (EqualityComparer<T>.Default.Equals(field, value)) return false;
+        field = value;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        return true;
+    }
 }

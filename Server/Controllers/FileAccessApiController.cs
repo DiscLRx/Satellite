@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Server.Tools;
 using Server.Tools.Encoding;
 using Server.Tools.Extensions;
@@ -88,8 +88,6 @@ public class FileAccessApiController(RuntimeData runtimeData) : ControllerBase
         }
 
         var locationRoot = location.Path.TrimSlash();
-
-        // Important, for security
         if (!PathExtension.SafeCombine(locationRoot, relativePath, out var fileFullPath) || !SysFile.Exists(fileFullPath))
         {
             HttpContext.Response.StatusCode = 400;

@@ -38,14 +38,14 @@ public class WebServer
         _app.MapRazorPages();
     }
 
-    public async Task StartAsync()
+    public async Task StartAsync(CancellationToken ct = default)
     {
         Environment.CurrentDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        await _app.StartAsync();
+        await _app.StartAsync(ct);
     }
 
-    public async Task StopAsync()
+    public async Task StopAsync(CancellationToken ct = default)
     {
-        await _app.StopAsync();
+        await _app.StopAsync(ct);
     }
 }

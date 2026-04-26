@@ -1,5 +1,7 @@
 <Solution>
   <Project Path="Data/Data.csproj" Type="Classic C#" />
-  <Project Path="Satellite/Satellite.csproj" />
+  <Project Path="SatelliteUI/SatelliteUI.csproj" />
+  <Project Path="SatelliteCore/SatelliteCore.csproj" />
   <Project Path="Server/Server.csproj" />
+  <Project Path="SatelliteFlex/SatelliteFlex.csproj" />
 </Solution>

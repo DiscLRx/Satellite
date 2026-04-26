@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -129,9 +129,6 @@ public partial class DirectoryItem(string name, long size, string type, DateTime
 
         return 0;
     }
-
-    // [LibraryImport("Shlwapi.dll", StringMarshalling = StringMarshalling.Utf16)]
-    // private static partial int StrCmpLogicalW(string a, string b);
 
 
     public static bool operator >(DirectoryItem item1, DirectoryItem item2)

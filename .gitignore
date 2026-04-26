@@ -371,3 +371,11 @@ appdata.json
 /Server/resources/lib/**
 !/Server/resources/lib/
 !/Server/resources/lib/libraries.md
+
+# C# project properties folders
+**/Properties/
+
+/SatelliteCore/Custom
+/SatelliteUI/Custom
+
+.vscode/
