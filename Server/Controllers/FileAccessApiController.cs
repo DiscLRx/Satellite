@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Server.Tools;
-using Server.Tools.Encoding;
 using Server.Tools.Extensions;
 using SysFile = System.IO.File;
 
@@ -76,23 +75,21 @@ public class FileAccessApiController(RuntimeData runtimeData) : ControllerBase
     [HttpGet("{locationNameBase64}/{relativePathBase64}")]
     public async Task GetFileRange(string locationNameBase64, string relativePathBase64)
     {
-        var locationName = Base64.FromBase64UrlToString(locationNameBase64);
-        var relativePath = Base64.FromBase64UrlToString(relativePathBase64).TrimSlash();
-
-        var locations = _runtimeData.Instance.Locations;
-        var location = locations.SingleOrDefault(loc => loc.Name == locationName);
-        if (location == null)
+        if (
+            !LocationPathResolver.TryResolve(
+                _runtimeData.Instance.Locations,
+                locationNameBase64,
+                relativePathBase64,
+                out var resolved
+            )
+            || !SysFile.Exists(resolved!.FullPath)
+        )
         {
             HttpContext.Response.StatusCode = 400;
             return;
         }
 
-        var locationRoot = location.Path.TrimSlash();
-        if (!PathExtension.SafeCombine(locationRoot, relativePath, out var fileFullPath) || !SysFile.Exists(fileFullPath))
-        {
-            HttpContext.Response.StatusCode = 400;
-            return;
-        }
+        var fileFullPath = resolved.FullPath;
 
         await using var fs = SysFile.OpenRead(fileFullPath);
         ParseRangeHeader(in fs, out long begin, out long end, out int statusCode);

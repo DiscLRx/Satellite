@@ -46,7 +46,10 @@ public static class LocationPathResolver
         }
 
         var locationRoot = Path.GetFullPath(location.Path);
-        if (!PathExtension.SafeCombine(locationRoot, relativePath, out var fullPath) || !Directory.Exists(fullPath))
+        if (
+            !PathExtension.SafeCombine(locationRoot, relativePath, out var fullPath)
+            || (!Directory.Exists(fullPath) && !File.Exists(fullPath))
+        )
         {
             return false;
         }
