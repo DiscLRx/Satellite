@@ -101,7 +101,16 @@ public class FileAccessApiController(RuntimeData runtimeData) : ControllerBase
         response.Headers.AcceptRanges = "bytes";
         response.ContentType = MimeMapper.GetMimeType(fileFullPath);
         response.ContentLength = end - begin + 1;
-        response.Headers.ContentRange = $"bytes {begin}-{end}/{fs.Length}";
+        if (statusCode == 206)
+            response.Headers.ContentRange = $"bytes {begin}-{end}/{fs.Length}";
+
+        var encodedFileName = Uri.EscapeDataString(Path.GetFileName(fileFullPath));
+        var mimeType = response.ContentType ?? "";
+        var disposition = mimeType.StartsWith("image/") || mimeType.StartsWith("video/") ||
+                          mimeType.StartsWith("audio/") || mimeType == "application/pdf"
+            ? "inline"
+            : "attachment";
+        response.Headers.ContentDisposition = $"{disposition}; filename*=UTF-8''{encodedFileName}";
 
         await WriteRangeToResponse(fs, begin, end);
     }
