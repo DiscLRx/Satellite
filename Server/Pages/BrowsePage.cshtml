@@ -75,6 +75,37 @@
                 --browse-control-bg-hover: rgba(255, 255, 255, 0.14);
                 --browse-control-border: rgba(236, 246, 251, 0.28);
                 --browse-control-border-hover: rgba(122, 167, 191, 0.38);
+                --browse-accent-border: rgba(255, 138, 61, 0.34);
+                --browse-accent-bg: rgba(255, 138, 61, 0.08);
+                --browse-accent-border-hover: rgba(255, 138, 61, 0.52);
+                --browse-accent-bg-hover: rgba(255, 138, 61, 0.14);
+                --browse-cyan-soft: rgba(89, 196, 207, 0.14);
+                --browse-cyan-mid: rgba(89, 196, 207, 0.168);
+                --browse-cyan-focus-border: rgba(89, 196, 207, 0.546);
+                --browse-cyan-focus-ring: rgba(89, 196, 207, 0.112);
+                --browse-transition-fast: 0.18s ease;
+                --browse-transition-normal: 0.2s ease;
+            }
+
+            .toolbar-link,
+            .file-trigger-button,
+            .action-button {
+                border: 1px solid var(--browse-accent-border);
+                background: var(--browse-accent-bg);
+                color: var(--text);
+            }
+
+            .toolbar-link:hover,
+            .toolbar-link:focus-visible,
+            .toolbar-light-toggle:hover,
+            .toolbar-light-toggle:focus-visible,
+            .file-trigger-button:hover,
+            .file-trigger-button:focus-visible,
+            .action-button:hover,
+            .action-button:focus-visible {
+                border-color: var(--browse-accent-border-hover);
+                background: var(--browse-accent-bg-hover);
+                outline: none;
             }
 
             a,
@@ -143,20 +174,14 @@
                 min-height: 46px;
                 padding: 0 16px;
                 border-radius: var(--browse-radius-control);
-                border: 1px solid rgba(255, 138, 61, 0.34);
-                background: rgba(255, 138, 61, 0.08);
-                color: var(--text);
                 box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
                 white-space: nowrap;
-                transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+                transition: border-color var(--browse-transition-normal), background-color var(--browse-transition-normal), transform var(--browse-transition-normal);
             }
 
             .toolbar-link:hover,
             .toolbar-link:focus-visible {
-                border-color: rgba(255, 138, 61, 0.52);
-                background: rgba(255, 138, 61, 0.14);
                 transform: translateY(-1px);
-                outline: none;
             }
 
             .toolbar-actions {
@@ -177,8 +202,6 @@
 
             .toolbar-light-toggle:hover,
             .toolbar-light-toggle:focus-visible {
-                border-color: rgba(255, 138, 61, 0.52);
-                background: rgba(255, 138, 61, 0.14);
             }
 
             .light-toggle-icon {
@@ -222,6 +245,9 @@
                 display: flex;
                 flex-wrap: wrap;
                 align-items: center;
+                min-width: 0;
+                row-gap: 2px;
+                column-gap: 2px;
                 margin-top: clamp(2px, 0.4vw, 4px);
                 padding: 6px clamp(8px, 1.1vw, 10px);
                 border: 1px solid var(--line);
@@ -237,6 +263,7 @@
                 color: rgba(200, 200, 204, 0.6);
                 user-select: none;
                 flex: 0 0 auto;
+                margin-inline: 1px;
             }
 
             .navigate-row>a {
@@ -245,16 +272,17 @@
                 padding: 2px 4px;
                 border-radius: var(--browse-radius-micro);
                 color: var(--text);
+                min-width: 0;
                 max-width: 100%;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
+                white-space: normal;
+                overflow-wrap: anywhere;
+                word-break: break-word;
                 transition: background 0.18s ease, color 0.18s ease;
             }
 
             .navigate-row>a:hover,
             .navigate-row>a:focus-visible {
-                background: rgba(89, 196, 207, 0.168);
+                background: var(--browse-cyan-mid);
                 color: #ffffff;
                 outline: none;
             }
@@ -291,14 +319,11 @@
                 margin: 0 1ch 0 0;
                 height: 32px;
                 border-radius: var(--browse-radius-small);
-                border: 1px solid rgba(255, 138, 61, 0.34);
-                background: rgba(255, 138, 61, 0.08);
-                color: var(--text);
                 font-size: 0.88rem;
                 font-weight: 500;
                 padding: 0 10px;
                 cursor: pointer;
-                transition: border-color 0.2s ease, background-color 0.2s ease;
+                transition: border-color var(--browse-transition-normal), background-color var(--browse-transition-normal);
                 line-height: 1;
                 text-align: center;
                 box-sizing: border-box;
@@ -307,9 +332,6 @@
 
             .file-trigger-button:hover,
             .file-trigger-button:focus-visible {
-                outline: none;
-                border-color: rgba(255, 138, 61, 0.52);
-                background: rgba(255, 138, 61, 0.14);
             }
 
             .file-name {
@@ -533,14 +555,11 @@
 
             .action-button {
                 border-radius: var(--browse-radius-control);
-                border: 1px solid rgba(255, 138, 61, 0.34);
-                background: rgba(255, 138, 61, 0.08);
-                color: var(--text);
                 font-size: 0.92rem;
                 padding: 10px 12px;
                 cursor: pointer;
                 min-width: 96px;
-                transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+                transition: border-color var(--browse-transition-normal), background-color var(--browse-transition-normal), transform var(--browse-transition-normal);
             }
 
             .action-select {
@@ -567,7 +586,7 @@
                 box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
                 box-sizing: border-box;
                 cursor: pointer;
-                transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+                transition: border-color var(--browse-transition-fast), box-shadow var(--browse-transition-fast), background var(--browse-transition-fast);
             }
 
             .select-trigger:hover {
@@ -578,8 +597,8 @@
             .action-select.open .select-trigger,
             .select-trigger:focus-visible {
                 outline: none;
-                border-color: rgba(89, 196, 207, 0.546);
-                box-shadow: 0 0 0 3px rgba(89, 196, 207, 0.112);
+                border-color: var(--browse-cyan-focus-border);
+                box-shadow: 0 0 0 3px var(--browse-cyan-focus-ring);
             }
 
             .select-arrow {
@@ -588,7 +607,7 @@
                 border-right: 2px solid rgba(236, 246, 251, 0.9);
                 border-bottom: 2px solid rgba(236, 246, 251, 0.9);
                 transform: rotate(45deg) translateY(-1px);
-                transition: transform 0.18s ease;
+                transition: transform var(--browse-transition-fast);
                 flex: 0 0 auto;
                 margin-left: 10px;
             }
@@ -626,7 +645,7 @@
                 pointer-events: none;
                 transform: translateY(8px) scale(0.98);
                 transform-origin: bottom center;
-                transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0.2s;
+                transition: opacity var(--browse-transition-normal), transform var(--browse-transition-normal), visibility 0s linear 0.2s;
             }
 
             .action-select.open .select-menu {
@@ -634,7 +653,7 @@
                 visibility: visible;
                 pointer-events: auto;
                 transform: translateY(0) scale(1);
-                transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s;
+                transition: opacity var(--browse-transition-normal), transform var(--browse-transition-normal), visibility 0s;
             }
 
             .select-menu.select-menu--portal {
@@ -675,7 +694,7 @@
             .select-option:hover,
             .select-option:focus-visible {
                 outline: none;
-                background: rgba(89, 196, 207, 0.14);
+                background: var(--browse-cyan-soft);
                 color: #ffffff;
             }
 
@@ -686,10 +705,27 @@
 
             .action-button:hover,
             .action-button:focus-visible {
-                outline: none;
-                border-color: rgba(255, 138, 61, 0.52);
-                background: rgba(255, 138, 61, 0.14);
                 transform: translateY(-1px);
+            }
+
+            @@media (prefers-reduced-motion: reduce) {
+                .toolbar-link,
+                .file-trigger-button,
+                .action-button,
+                .select-trigger,
+                .select-arrow,
+                .select-menu,
+                .action-select.open .select-menu,
+                .navigate-row > a {
+                    transition: none !important;
+                }
+
+                .toolbar-link:hover,
+                .toolbar-link:focus-visible,
+                .action-button:hover,
+                .action-button:focus-visible {
+                    transform: none;
+                }
             }
 
             @@media (max-width: 1000px) {
@@ -792,7 +828,7 @@
                     padding: 4px 8px;
                     border-radius: var(--browse-radius-small);
                     font-size: 0.82rem;
-                    line-height: 1.22;
+                    line-height: 1.28;
                 }
 
                 th,
