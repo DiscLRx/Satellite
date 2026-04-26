@@ -45,7 +45,7 @@ public static class LocationPathResolver
             return false;
         }
 
-        var locationRoot = Path.GetFullPath(location.Path).TrimSlash();
+        var locationRoot = Path.GetFullPath(location.Path);
         if (!PathExtension.SafeCombine(locationRoot, relativePath, out var fullPath) || !Directory.Exists(fullPath))
         {
             return false;
