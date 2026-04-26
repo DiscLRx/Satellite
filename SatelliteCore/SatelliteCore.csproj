@@ -12,10 +12,6 @@
     <DebugType>none</DebugType>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <AppDataJsonPath>$(MSBuildProjectDirectory)\appdata.json</AppDataJsonPath>
-  </PropertyGroup>
-
   <ItemGroup>
     <ProjectReference Include="../Data/Data.csproj" />
     <ProjectReference Include="../Server/Server.csproj" />
@@ -24,43 +20,5 @@
   <ItemGroup>
     <EmbeddedResource Include="appdata.template.json" LogicalName="SatelliteCore.appdata.template.json" />
   </ItemGroup>
-
-  <Target Name="CopyAppDataAfterBuild"
-          AfterTargets="Build"
-      Condition="Exists('$(AppDataJsonPath)')">
-    <Copy SourceFiles="$(AppDataJsonPath)"
-          DestinationFiles="$(TargetDir)appdata.json"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="CopyCustomAfterBuild"
-          AfterTargets="Build"
-          Condition="Exists('$(MSBuildProjectDirectory)\Custom')">
-    <ItemGroup>
-      <_CustomFiles Include="$(MSBuildProjectDirectory)\Custom\**\*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_CustomFiles)"
-          DestinationFiles="@(_CustomFiles->'$(TargetDir)Custom\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="CopyAppDataAfterPublish"
-          AfterTargets="Publish"
-      Condition="Exists('$(AppDataJsonPath)') and '$(PublishDir)' != ''">
-    <Copy SourceFiles="$(AppDataJsonPath)"
-          DestinationFiles="$(PublishDir)appdata.json"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="CopyCustomAfterPublish"
-          AfterTargets="Publish"
-          Condition="Exists('$(MSBuildProjectDirectory)\Custom') and '$(PublishDir)' != ''">
-    <ItemGroup>
-      <_CustomFilesPublish Include="$(MSBuildProjectDirectory)\Custom\**\*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_CustomFilesPublish)"
-          DestinationFiles="@(_CustomFilesPublish->'$(PublishDir)Custom\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-  </Target>
 
 </Project>

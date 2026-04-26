@@ -16,9 +16,13 @@
         <DebugType>none</DebugType>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <CoreAppDataJsonPath>..\SatelliteCore\appdata.json</CoreAppDataJsonPath>
+        <CoreCustomRoot>..\SatelliteCore\Custom</CoreCustomRoot>
+    </PropertyGroup>
+
     <ItemGroup>
         <AvaloniaResource Include="Assets\**" />
-        <None Include="Custom\**" Condition="Exists('Custom')" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
     <ItemGroup>
@@ -42,13 +46,61 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Remove="ViewModels\Converters\CurrentInstanceConverter.cs" />
-    </ItemGroup>
-
-    <ItemGroup>
         <ProjectReference Include="..\SatelliteCore\SatelliteCore.csproj" />
         <ProjectReference Include="..\Data\Data.csproj" />
         <ProjectReference Include="..\Server\Server.csproj" />
     </ItemGroup>
+
+    <Target Name="CopyCoreAppDataAfterBuild"
+            AfterTargets="Build"
+            Condition="Exists('$(CoreAppDataJsonPath)')">
+        <Copy SourceFiles="$(CoreAppDataJsonPath)"
+              DestinationFiles="$(TargetDir)appdata.json"
+              SkipUnchangedFiles="false"
+              OverwriteReadOnlyFiles="true" />
+    </Target>
+
+    <Target Name="CopyCoreAppDataAfterPublish"
+            AfterTargets="Publish"
+            Condition="Exists('$(CoreAppDataJsonPath)') and '$(PublishDir)' != ''">
+        <Copy SourceFiles="$(CoreAppDataJsonPath)"
+              DestinationFiles="$(PublishDir)appdata.json"
+              SkipUnchangedFiles="false"
+              OverwriteReadOnlyFiles="true" />
+    </Target>
+
+    <Target Name="CopyCustomAfterBuild"
+            AfterTargets="Build"
+            Condition="'$(TargetDir)' != ''">
+        <ItemGroup>
+            <_CoreCustomFiles Include="$(CoreCustomRoot)\**\*"
+                              Condition="Exists('$(CoreCustomRoot)')" />
+            <_UiCustomFiles Include="$(MSBuildProjectDirectory)\Custom\**\*"
+                            Condition="Exists('$(MSBuildProjectDirectory)\Custom')" />
+        </ItemGroup>
+        <Copy SourceFiles="@(_CoreCustomFiles)"
+              DestinationFiles="@(_CoreCustomFiles->'$(TargetDir)Custom\%(RecursiveDir)%(Filename)%(Extension)')"
+              SkipUnchangedFiles="true" />
+        <Copy SourceFiles="@(_UiCustomFiles)"
+              DestinationFiles="@(_UiCustomFiles->'$(TargetDir)Custom\%(RecursiveDir)%(Filename)%(Extension)')"
+              SkipUnchangedFiles="true" />
+    </Target>
+
+    <Target Name="CopyCustomAfterPublish"
+            AfterTargets="Publish"
+            Condition="'$(PublishDir)' != ''">
+        <ItemGroup>
+            <_CoreCustomFilesPublish Include="$(CoreCustomRoot)\**\*"
+                                     Condition="Exists('$(CoreCustomRoot)')" />
+            <_UiCustomFilesPublish Include="$(MSBuildProjectDirectory)\Custom\**\*"
+                                   Condition="Exists('$(MSBuildProjectDirectory)\Custom')" />
+        </ItemGroup>
+        <Copy SourceFiles="@(_CoreCustomFilesPublish)"
+              DestinationFiles="@(_CoreCustomFilesPublish->'$(PublishDir)Custom\%(RecursiveDir)%(Filename)%(Extension)')"
+              SkipUnchangedFiles="true" />
+        <Copy SourceFiles="@(_UiCustomFilesPublish)"
+              DestinationFiles="@(_UiCustomFilesPublish->'$(PublishDir)Custom\%(RecursiveDir)%(Filename)%(Extension)')"
+              SkipUnchangedFiles="true" />
+    </Target>
 
 </Project>
