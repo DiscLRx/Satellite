@@ -460,7 +460,7 @@
 
         .metric-controls-row {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 10px;
             grid-column: 1 / -1;
         }
@@ -789,19 +789,19 @@
             }
         }
 
-        @@media (max-width: 720px) {
+        .native-mobile-player .player-frame media-controls,
+        .native-mobile-player .player-frame media-overlay,
+        .native-mobile-player .player-frame media-buffering-indicator,
+        .native-mobile-player .player-frame media-error-dialog,
+        .native-mobile-player .player-frame media-tooltip,
+        .native-mobile-player .player-frame media-tooltip-group,
+        .native-mobile-player .player-frame media-popover,
+        .native-mobile-player .player-frame media-gesture,
+        .native-mobile-player .player-frame media-hotkey {
+            display: none !important;
+        }
 
-            .native-mobile-player .player-frame media-controls,
-            .native-mobile-player .player-frame media-overlay,
-            .native-mobile-player .player-frame media-buffering-indicator,
-            .native-mobile-player .player-frame media-error-dialog,
-            .native-mobile-player .player-frame media-tooltip,
-            .native-mobile-player .player-frame media-tooltip-group,
-            .native-mobile-player .player-frame media-popover,
-            .native-mobile-player .player-frame media-gesture,
-            .native-mobile-player .player-frame media-hotkey {
-                display: none !important;
-            }
+        @@media (max-width: 720px) {
 
             body {
                 padding: 10px max(10px, env(safe-area-inset-right)) 10px max(10px, env(safe-area-inset-left));
@@ -922,7 +922,7 @@
             }
 
             .metric-controls-row {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
+                grid-template-columns: repeat(4, minmax(0, 1fr));
             }
 
             .player-frame media-mute-button,
@@ -942,12 +942,29 @@
     </style>
     <script>
         (function () {
-            const isMobile = window.matchMedia("(max-width: 720px)").matches;
-            if (isMobile) {
+            const mobileUaPattern = /Android|iPhone|iPad|iPod|IEMobile|BlackBerry|Opera Mini|Opera Mobi|Windows Phone|KaiOS|Mobile Safari/i;
+
+            function detectIsMobileUserAgent() {
+                const ua = navigator.userAgent || "";
+                if (mobileUaPattern.test(ua)) {
+                    return true;
+                }
+                // iPadOS 13+ 在 Safari 中默认伪装为 Macintosh，需结合触屏点数判定。
+                if (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1) {
+                    return true;
+                }
+                return false;
+            }
+
+            const playerKind = detectIsMobileUserAgent() ? "native" : "videojs";
+            document.documentElement.dataset.playerKind = playerKind;
+
+            if (playerKind === "native") {
                 document.documentElement.classList.add("native-mobile-player");
                 return;
             }
 
+            document.documentElement.dataset.videojsLoaded = "1";
             const moduleScript = document.createElement("script");
             moduleScript.type = "module";
             moduleScript.src = "/api/res/lib/js/videojs/video-ui.js";
@@ -1274,6 +1291,11 @@
                             <img id="playModeIcon" class="mode-icon" src="/api/res/icon/btn-sequence.svg"
                                  alt="顺序播放"/>
                         </button>
+                        <button id="playerKindBtn" class="action action--icon" type="button"
+                                aria-label="切换播放器内核" title="切换播放器内核">
+                            <img id="playerKindIcon" class="mode-icon" src="/api/res/icon/btn-player-videojs.svg"
+                                 alt="videojs 播放器"/>
+                        </button>
                     </div>
                     <div class="metric-card metric-card--wide">
                         <div class="field-label">名称</div>
@@ -1353,6 +1375,8 @@
         lightToggleBtn: document.getElementById("lightToggleBtn"),
         playModeBtn: document.getElementById("playModeBtn"),
         playModeIcon: document.getElementById("playModeIcon"),
+        playerKindBtn: document.getElementById("playerKindBtn"),
+        playerKindIcon: document.getElementById("playerKindIcon"),
         prevBtn: document.getElementById("prevBtn"),
         nextBtn: document.getElementById("nextBtn"),
         counterText: document.getElementById("counterText"),
@@ -1728,6 +1752,21 @@
         repeat: "/api/res/icon/btn-repeat.svg"
     };
 
+    const playerKindIconUrls = {
+        native: "/api/res/icon/btn-player-native.svg",
+        videojs: "/api/res/icon/btn-player-videojs.svg"
+    };
+
+    const playerKindLabels = {
+        native: "当前：浏览器原生播放器（点击切换为 videojs）",
+        videojs: "当前：videojs 播放器（点击切换为浏览器原生）"
+    };
+
+    const playerKindAlts = {
+        native: "浏览器原生播放器",
+        videojs: "videojs 播放器"
+    };
+
     const storageKeys = {
         lightMode: "lightMode",
         legacyLightMode: "liteplay.lightMode",
@@ -1753,6 +1792,95 @@
     if (useNativeMobilePlayer && elements.video) {
         elements.video.controls = true;
         elements.video.setAttribute("controls", "controls");
+    }
+
+    function detectIsMobileUserAgent() {
+        const ua = navigator.userAgent || "";
+        if (/Android|iPhone|iPad|iPod|IEMobile|BlackBerry|Opera Mini|Opera Mobi|Windows Phone|KaiOS|Mobile Safari/i.test(ua)) {
+            return true;
+        }
+        if (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1) {
+            return true;
+        }
+        return false;
+    }
+
+    let currentPlayerKind = (document.documentElement.dataset.playerKind === "native" || document.documentElement.dataset.playerKind === "videojs")
+        ? document.documentElement.dataset.playerKind
+        : (detectIsMobileUserAgent() ? "native" : "videojs");
+
+    function getCurrentPlayerKind() {
+        return currentPlayerKind;
+    }
+
+    function syncPlayerKindUi() {
+        if (!elements.playerKindBtn || !elements.playerKindIcon) {
+            return;
+        }
+        const kind = getCurrentPlayerKind();
+        elements.playerKindIcon.src = playerKindIconUrls[kind];
+        elements.playerKindIcon.alt = playerKindAlts[kind];
+        elements.playerKindBtn.title = playerKindLabels[kind];
+        elements.playerKindBtn.setAttribute("aria-label", playerKindLabels[kind]);
+    }
+
+    function ensureVideojsModuleLoaded() {
+        if (document.documentElement.dataset.videojsLoaded === "1") {
+            return;
+        }
+        document.documentElement.dataset.videojsLoaded = "1";
+        const moduleScript = document.createElement("script");
+        moduleScript.type = "module";
+        moduleScript.src = "/api/res/lib/js/videojs/video-ui.js";
+        document.head.append(moduleScript);
+    }
+
+    function applyPlayerKind(kind) {
+        const previousTime = Number.isFinite(elements.video.currentTime) ? elements.video.currentTime : 0;
+        const wasPaused = elements.video.paused;
+
+        document.documentElement.dataset.playerKind = kind;
+
+        if (kind === "native") {
+            document.documentElement.classList.add("native-mobile-player");
+            elements.video.controls = true;
+            elements.video.setAttribute("controls", "controls");
+        } else {
+            document.documentElement.classList.remove("native-mobile-player");
+            elements.video.controls = false;
+            elements.video.removeAttribute("controls");
+            ensureVideojsModuleLoaded();
+        }
+
+        // 切换内核后保持播放进度与播放/暂停状态。
+        if (previousTime > 0) {
+            try {
+                elements.video.currentTime = previousTime;
+            } catch {
+            }
+        }
+        if (!wasPaused) {
+            elements.video.play().catch(() => {
+            });
+        }
+    }
+
+    function togglePlayerKind() {
+        if (elements.playerKindBtn?.disabled) {
+            return;
+        }
+        if (elements.playerKindBtn) {
+            elements.playerKindBtn.disabled = true;
+        }
+        const next = currentPlayerKind === "native" ? "videojs" : "native";
+        currentPlayerKind = next;
+        applyPlayerKind(next);
+        syncPlayerKindUi();
+        requestAnimationFrame(() => {
+            if (elements.playerKindBtn) {
+                elements.playerKindBtn.disabled = false;
+            }
+        });
     }
 
     function syncLightToggleUi() {
@@ -2161,6 +2289,7 @@
         applyScript();
     });
     elements.lightToggleBtn?.addEventListener("click", toggleLightMask);
+    elements.playerKindBtn?.addEventListener("click", togglePlayerKind);
 
     // 初始化
     appendFilterScriptOptions();
@@ -2168,6 +2297,7 @@
     restorePlayModeFromStorage();
     syncLightToggleUi();
     syncPlaybackModeUi();
+    syncPlayerKindUi();
     renderPlayerState();
     loadVideoSummaries();
 </script>
