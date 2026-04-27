@@ -4,38 +4,43 @@ namespace Server.Tools;
 
 public partial class DirectoryTool
 {
-    public static void RecursiveTraversal(string path, Action<FileInfo> action)
+    public static void RecursiveTraversal(string path, Action<FileInfo> action, bool sort = true)
     {
         try
         {
             var files = Directory.GetFiles(path);
-            Array.Sort(
-                files,
-                (left, right) =>
-                    PathCompare(
-                        Path.GetFileName(left),
-                        Path.GetFileName(right)
-                    )
-            );
-
-            var fileInfos = files.Select(file => new FileInfo(file));
-            foreach (var fileInfo in fileInfos)
+            if (sort)
             {
-                action(fileInfo);
+                Array.Sort(
+                    files,
+                    (left, right) =>
+                        PathCompare(
+                            Path.GetFileName(left),
+                            Path.GetFileName(right)
+                        )
+                );
+            }
+
+            foreach (var file in files)
+            {
+                action(new FileInfo(file));
             }
             var directories = Directory.GetDirectories(path);
-            Array.Sort(
-                directories,
-                (left, right) =>
-                    PathCompare(
-                        Path.GetFileName(left),
-                        Path.GetFileName(right)
-                    )
-            );
+            if (sort)
+            {
+                Array.Sort(
+                    directories,
+                    (left, right) =>
+                        PathCompare(
+                            Path.GetFileName(left),
+                            Path.GetFileName(right)
+                        )
+                );
+            }
 
             foreach (var dir in directories)
             {
-                RecursiveTraversal(dir, action); 
+                RecursiveTraversal(dir, action, sort);
             }
         }
         catch (UnauthorizedAccessException)

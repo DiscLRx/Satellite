@@ -1,3 +1,4 @@
+using System.IO.Enumeration;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
@@ -58,27 +59,46 @@ public class BrowsePage(RuntimeData runtimeData) : PageModel
 
 public class FileHelper
 {
+    private static readonly EnumerationOptions RecursiveSizeEnumerationOptions = new()
+    {
+        RecurseSubdirectories = true,
+        IgnoreInaccessible = true,
+        AttributesToSkip = FileAttributes.Device,
+        ReturnSpecialDirectories = false,
+    };
+
+    private static readonly EnumerationOptions TopLevelEnumerationOptions = new()
+    {
+        RecurseSubdirectories = false,
+        IgnoreInaccessible = true,
+        ReturnSpecialDirectories = false,
+    };
+
     public static List<DirectoryItem> GetDirectoryItems(string basePath)
     {
-        var dirs = Directory.GetDirectories(basePath);
-        var dirItems = dirs.Select(dir => new DirectoryInfo(dir))
-            .Select(dirInfo => new DirectoryItem(
+        var baseInfo = new DirectoryInfo(basePath);
+        var dirInfos = baseInfo.GetDirectories("*", TopLevelEnumerationOptions);
+        var dirSizes = new long[dirInfos.Length];
+        Parallel.For(0, dirInfos.Length, i =>
+        {
+            dirSizes[i] = GetDirectorySize(dirInfos[i].FullName);
+        });
+        var dirItems = dirInfos
+            .Select((dirInfo, i) => new DirectoryItem(
                 dirInfo.Name,
-                GetDirectorySize(dirInfo.FullName),
+                dirSizes[i],
                 "d",
                 dirInfo.LastWriteTime
             ))
             .ToList();
-        var files = Directory.GetFiles(basePath);
+        var fileInfos = baseInfo.GetFiles("*", TopLevelEnumerationOptions);
         dirItems.AddRange(
-            files
-                .Select(file => new FileInfo(file))
-                .Select(fileInfo => new DirectoryItem(
-                    fileInfo.Name,
-                    fileInfo.Length,
-                    "f",
-                    fileInfo.LastWriteTime
-                ))
+            fileInfos.Select(fileInfo => new DirectoryItem(
+                fileInfo.Name,
+                fileInfo.Length,
+                "f",
+                fileInfo.LastWriteTime
+            ))
         );
         dirItems.Sort();
         return dirItems;
@@ -86,24 +106,26 @@ public class FileHelper
 
     private static long GetDirectorySize(string directoryPath)
     {
-        long totalSize = 0;
-
-        DirectoryTool.RecursiveTraversal(
+        // 使用 FileSystemEnumerable<long> 直接从原生枚举数据读取 Length，
+        // 避免构造 FileInfo / 二次 stat。
+        var sizes = new FileSystemEnumerable<long>(
             directoryPath,
-            fileInfo =>
-            {
-                var fileSize = fileInfo.Length;
-                if (long.MaxValue - totalSize < fileSize)
-                {
-                    totalSize = long.MaxValue;
-                }
-                else
-                {
-                    totalSize += fileSize;
-                }
-            }
-        );
+            (ref FileSystemEntry entry) => entry.Length,
+            RecursiveSizeEnumerationOptions
+        )
+        {
+            ShouldIncludePredicate = (ref FileSystemEntry entry) => !entry.IsDirectory,
+        };
 
+        long totalSize = 0;
+        foreach (var fileSize in sizes)
+        {
+            if (long.MaxValue - totalSize < fileSize)
+            {
+                return long.MaxValue;
+            }
+            totalSize += fileSize;
+        }
         return totalSize;
     }
 }
